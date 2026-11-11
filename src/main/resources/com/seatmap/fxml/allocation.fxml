@@ -1,0 +1,75 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<?import javafx.scene.control.Button?>
+<?import javafx.scene.control.ComboBox?>
+<?import javafx.scene.control.Label?>
+<?import javafx.scene.control.TableColumn?>
+<?import javafx.scene.control.TableView?>
+<?import javafx.scene.control.TextField?>
+<?import javafx.scene.layout.HBox?>
+<?import javafx.scene.layout.Region?>
+<?import javafx.scene.layout.VBox?>
+
+<VBox xmlns="http://javafx.com/javafx/21"
+      xmlns:fx="http://javafx.com/fxml/1"
+      fx:controller="com.seatmap.controller.AllocationController"
+      spacing="18">
+
+    <HBox alignment="CENTER_LEFT" spacing="12">
+        <VBox spacing="2" HBox.hgrow="ALWAYS">
+            <Label text="Allocation Engine" styleClass="page-title"/>
+            <Label text="Run anti-cheating seat allocation so no same-department students sit adjacently." styleClass="page-subtitle"/>
+        </VBox>
+        <Button fx:id="viewSeatingButton" text="Open Seating Chart" onAction="#handleOpenSeatingChart" styleClass="btn-secondary"/>
+    </HBox>
+
+    <VBox spacing="16" styleClass="card">
+        <Label text="Allocation Parameters" styleClass="card-title"/>
+
+        <HBox spacing="14" alignment="BOTTOM_LEFT">
+            <VBox spacing="5" HBox.hgrow="ALWAYS">
+                <Label text="Select Exam" styleClass="field-label"/>
+                <ComboBox fx:id="examComboBox" maxWidth="Infinity" promptText="Choose an exam"/>
+            </VBox>
+
+            <VBox spacing="5" prefWidth="220">
+                <Label text="Target Department(s)" styleClass="field-label"/>
+                <TextField fx:id="departmentFilterField" text="ALL" promptText="ALL or e.g. CSE,EEE"/>
+            </VBox>
+
+            <VBox spacing="5" prefWidth="180">
+                <Label text="Target Semester" styleClass="field-label"/>
+                <ComboBox fx:id="semesterComboBox" maxWidth="Infinity" editable="true" promptText="ALL or e.g. 4"/>
+            </VBox>
+        </HBox>
+
+        <HBox spacing="12" alignment="CENTER_LEFT">
+            <Button fx:id="generateButton" text="Generate Allocations" onAction="#handleGenerateAllocations" styleClass="btn-hero"/>
+            <Label text="Use ALL for multi-department exams, or comma-separated departments (e.g. CSE,EEE,ME)." styleClass="muted-label"/>
+        </HBox>
+
+        <Label fx:id="statusLabel" visible="false" managed="false" wrapText="true" maxWidth="Infinity"/>
+    </VBox>
+
+    <VBox spacing="10" styleClass="card" VBox.vgrow="ALWAYS">
+        <HBox alignment="CENTER_LEFT" spacing="10">
+            <Label text="Unallocated Students (Capacity / Constraint Overflow)" styleClass="card-title" HBox.hgrow="ALWAYS"/>
+            <Label fx:id="summaryCountLabel" text="" styleClass="muted-label"/>
+        </HBox>
+
+        <TableView fx:id="unallocatedTable" VBox.vgrow="ALWAYS">
+            <columns>
+                <TableColumn fx:id="unallocRollCol" text="Roll Number"/>
+                <TableColumn fx:id="unallocNameCol" text="Name"/>
+                <TableColumn fx:id="unallocDeptCol" text="Department"/>
+                <TableColumn fx:id="unallocSemCol" text="Semester"/>
+            </columns>
+            <columnResizePolicy>
+                <TableView fx:constant="CONSTRAINED_RESIZE_POLICY"/>
+            </columnResizePolicy>
+            <placeholder>
+                <Label text="Run Generate Allocations to view status. Zero unallocated students means everyone was seated."/>
+            </placeholder>
+        </TableView>
+    </VBox>
+</VBox>

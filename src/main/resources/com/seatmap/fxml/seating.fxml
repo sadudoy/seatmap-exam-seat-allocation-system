@@ -1,0 +1,91 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<?import javafx.geometry.Insets?>
+<?import javafx.scene.control.Button?>
+<?import javafx.scene.control.ComboBox?>
+<?import javafx.scene.control.Label?>
+<?import javafx.scene.control.ScrollPane?>
+<?import javafx.scene.layout.FlowPane?>
+<?import javafx.scene.layout.GridPane?>
+<?import javafx.scene.layout.HBox?>
+<?import javafx.scene.layout.Region?>
+<?import javafx.scene.layout.VBox?>
+
+<VBox xmlns="http://javafx.com/javafx/21"
+      xmlns:fx="http://javafx.com/fxml/1"
+      fx:controller="com.seatmap.controller.SeatingController"
+      spacing="16">
+
+    <HBox alignment="CENTER_LEFT" spacing="12">
+        <VBox spacing="2" HBox.hgrow="ALWAYS">
+            <Label text="Visual Seating Chart" styleClass="page-title"/>
+            <Label text="Inspect assigned desks by exam and room, click any seat for student details, or export to PDF." styleClass="page-subtitle"/>
+        </VBox>
+        <Button text="Refresh" onAction="#handleRefresh" styleClass="btn-secondary"/>
+        <Button fx:id="exportPdfButton" text="Export PDF" onAction="#handleExportPdf" styleClass="btn-primary"/>
+    </HBox>
+
+    <HBox spacing="14" styleClass="card" alignment="CENTER_LEFT">
+        <VBox spacing="4" HBox.hgrow="ALWAYS">
+            <Label text="Exam" styleClass="field-label"/>
+            <ComboBox fx:id="examComboBox" maxWidth="Infinity" promptText="Select Exam" onAction="#handleSelectionChanged"/>
+        </VBox>
+
+        <VBox spacing="4" prefWidth="260">
+            <Label text="Room" styleClass="field-label"/>
+            <ComboBox fx:id="roomComboBox" maxWidth="Infinity" promptText="Select Room" onAction="#handleSelectionChanged"/>
+        </VBox>
+
+        <VBox spacing="4" alignment="CENTER_RIGHT" minWidth="160">
+            <Label text="Occupancy" styleClass="field-label"/>
+            <Label fx:id="occupancyLabel" text="0 / 0 seats" styleClass="card-title"/>
+        </VBox>
+    </HBox>
+
+    <HBox spacing="16" VBox.vgrow="ALWAYS">
+        <VBox spacing="10" styleClass="card" HBox.hgrow="ALWAYS">
+            <HBox alignment="CENTER_LEFT" spacing="12">
+                <Label text="Room Floor Grid (Front of Room at Top)" styleClass="card-title" HBox.hgrow="ALWAYS"/>
+                <FlowPane fx:id="legendPane" hgap="8" vgap="6" alignment="CENTER_RIGHT"/>
+            </HBox>
+
+            <ScrollPane fitToWidth="false" fitToHeight="false" VBox.vgrow="ALWAYS" styleClass="seat-scroll">
+                <content>
+                    <GridPane fx:id="seatGrid" hgap="10" vgap="10">
+                        <padding>
+                            <Insets top="14" right="14" bottom="14" left="14"/>
+                        </padding>
+                    </GridPane>
+                </content>
+            </ScrollPane>
+        </VBox>
+
+        <VBox spacing="12" styleClass="card" prefWidth="280" minWidth="260">
+            <Label text="Selected Seat Inspector" styleClass="card-title"/>
+            <Label fx:id="selectedSeatBadge" text="No seat selected" styleClass="muted-label"/>
+
+            <VBox spacing="3">
+                <Label text="Roll Number" styleClass="field-label"/>
+                <Label fx:id="detailRollLabel" text="-"/>
+            </VBox>
+
+            <VBox spacing="3">
+                <Label text="Student Name" styleClass="field-label"/>
+                <Label fx:id="detailNameLabel" text="-" wrapText="true"/>
+            </VBox>
+
+            <VBox spacing="3">
+                <Label text="Department" styleClass="field-label"/>
+                <Label fx:id="detailDeptLabel" text="-"/>
+            </VBox>
+
+            <VBox spacing="3">
+                <Label text="Semester" styleClass="field-label"/>
+                <Label fx:id="detailSemesterLabel" text="-"/>
+            </VBox>
+
+            <Region VBox.vgrow="ALWAYS"/>
+            <Label text="Tip: Click any occupied desk tile to view the assigned student." wrapText="true" styleClass="muted-label"/>
+        </VBox>
+    </HBox>
+</VBox>

@@ -1,0 +1,77 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<?import javafx.geometry.Insets?>
+<?import javafx.scene.control.Button?>
+<?import javafx.scene.control.Label?>
+<?import javafx.scene.control.PasswordField?>
+<?import javafx.scene.control.TextField?>
+<?import javafx.scene.image.Image?>
+<?import javafx.scene.image.ImageView?>
+<?import javafx.scene.layout.HBox?>
+<?import javafx.scene.layout.Region?>
+<?import javafx.scene.layout.VBox?>
+
+<HBox fx:id="rootPane"
+      xmlns="http://javafx.com/javafx/21"
+      xmlns:fx="http://javafx.com/fxml/1"
+      fx:controller="com.seatmap.controller.LoginController"
+      styleClass="login-split-root">
+
+    <!-- Left 50%: Dark Brand Panel -->
+    <VBox fx:id="leftPane" HBox.hgrow="ALWAYS" styleClass="login-split-left" alignment="TOP_LEFT">
+        <padding>
+            <Insets top="48" right="64" bottom="40" left="64"/>
+        </padding>
+
+        <Region VBox.vgrow="ALWAYS"/>
+
+        <VBox spacing="16" maxWidth="480" alignment="CENTER_LEFT">
+            <ImageView fx:id="loginLogoView" fitWidth="220" preserveRatio="true" smooth="true">
+                <image>
+                    <Image url="@../../../com/images/icon2.png"/>
+                </image>
+            </ImageView>
+
+            <Label text="Exam Seat Allocation System" styleClass="login-split-tagline"/>
+
+            <Label wrapText="true"
+                   text="Manage student cohorts, examination halls, schedules, and anti-cheating seating plans from a single workspace."
+                   styleClass="login-split-description"/>
+        </VBox>
+
+        <Region VBox.vgrow="ALWAYS"/>
+
+        <Label text="PostgreSQL + HikariCP Connected" styleClass="login-split-footer"/>
+    </VBox>
+
+    <!-- Right 50%: Crisp White Sign-In Form -->
+    <VBox fx:id="rightPane" HBox.hgrow="ALWAYS" styleClass="login-split-right" alignment="CENTER">
+        <padding>
+            <Insets top="48" right="64" bottom="48" left="64"/>
+        </padding>
+
+        <VBox prefWidth="360" maxWidth="380" spacing="18" alignment="CENTER_LEFT">
+            <VBox spacing="6">
+                <Label text="Administrator Sign In" styleClass="login-form-heading"/>
+                <Label text="Enter your administrator credentials to continue." styleClass="page-subtitle"/>
+            </VBox>
+
+            <Label fx:id="errorLabel" styleClass="error-banner" visible="false" managed="false" wrapText="true" maxWidth="Infinity"/>
+
+            <VBox spacing="6">
+                <Label text="Username" styleClass="field-label"/>
+                <TextField fx:id="usernameField" promptText="Enter username" prefWidth="360" styleClass="login-input"/>
+            </VBox>
+
+            <VBox spacing="6">
+                <Label text="Password" styleClass="field-label"/>
+                <PasswordField fx:id="passwordField" promptText="Enter password" onAction="#handleLogin" prefWidth="360" styleClass="login-input"/>
+            </VBox>
+
+            <Region prefHeight="4"/>
+
+            <Button fx:id="loginButton" text="Sign In" onAction="#handleLogin"
+                    styleClass="btn-primary login-submit-btn" maxWidth="Infinity" defaultButton="true"/>
+        </VBox>
+    </VBox>
+</HBox>
