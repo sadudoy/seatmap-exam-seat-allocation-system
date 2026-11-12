@@ -184,6 +184,67 @@ class AllocationServiceTest {
         }
     }
 
+    @Test
+    @DisplayName("runs granular allocation filtering only CSE and Semester 1 students")
+    void granularAllocationFiltersByDepartmentAndSemester() {
+        StudentDAO studentDAO = new StudentDAO();
+        RoomDAO roomDAO = new RoomDAO();
+        ExamDAO examDAO = new ExamDAO();
+        AllocationDAO allocationDAO = new AllocationDAO();
+
+        Student matchingStudent = null;
+        Student nonMatchingStudent = null;
+        Room tempRoom = null;
+        Exam tempExam = null;
+
+        try {
+            matchingStudent = studentDAO.add(new Student("GRAN-CSE-001", "Granular Match", "CSE", "1"));
+            nonMatchingStudent = studentDAO.add(new Student("GRAN-EEE-002", "Granular Skip", "EEE", "2"));
+
+            List<Student> filtered = studentDAO.getFilteredStudents(List.of("CSE"), List.of(1));
+            long matchingId = matchingStudent.getId();
+            long nonMatchingId = nonMatchingStudent.getId();
+            assertTrue(filtered.stream().anyMatch(s -> s.getId() == matchingId));
+            assertFalse(filtered.stream().anyMatch(s -> s.getId() == nonMatchingId));
+            assertTrue(filtered.stream().allMatch(
+                    s -> "CSE".equalsIgnoreCase(s.getDepartment()) && "1".equals(s.getSemester())));
+
+            tempRoom = roomDAO.add(new Room("GRAN-HALL", 40, 5, 8));
+            tempExam = examDAO.add(new Exam("Granular CSE-1 Exam",
+                    LocalDate.of(2026, 12, 28), LocalTime.of(14, 0)));
+
+            AllocationResult result = allocationService.runAllocation(
+                    tempExam.getId(), List.of("CSE"), List.of(1),
+                    AllocationService.STRATEGY_ANTI_CHEATING_MIX);
+
+            Map<Long, Student> byId = new HashMap<>();
+            for (Student s : studentDAO.getAll()) {
+                byId.put(s.getId(), s);
+            }
+            List<Allocation> saved = allocationDAO.getByExamId(tempExam.getId());
+            assertEquals(result.allocations().size(), saved.size());
+            assertTrue(saved.stream().anyMatch(a -> a.getStudentId() == matchingId));
+            assertFalse(saved.stream().anyMatch(a -> a.getStudentId() == nonMatchingId));
+            assertTrue(saved.stream().allMatch(a -> {
+                Student s = byId.get(a.getStudentId());
+                return s != null && "CSE".equalsIgnoreCase(s.getDepartment()) && "1".equals(s.getSemester());
+            }));
+        } finally {
+            if (tempExam != null && tempExam.getId() > 0) {
+                examDAO.delete(tempExam.getId());
+            }
+            if (tempRoom != null && tempRoom.getId() > 0) {
+                roomDAO.delete(tempRoom.getId());
+            }
+            if (matchingStudent != null && matchingStudent.getId() > 0) {
+                studentDAO.delete(matchingStudent.getId());
+            }
+            if (nonMatchingStudent != null && nonMatchingStudent.getId() > 0) {
+                studentDAO.delete(nonMatchingStudent.getId());
+            }
+        }
+    }
+
     private static void assertNoDuplicateSeatsOrStudents(List<Allocation> allocations) {
         Set<Long> studentIds = new HashSet<>();
         Set<String> seatKeys = new HashSet<>();

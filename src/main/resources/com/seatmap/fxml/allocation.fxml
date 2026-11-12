@@ -5,9 +5,8 @@
 <?import javafx.scene.control.Label?>
 <?import javafx.scene.control.TableColumn?>
 <?import javafx.scene.control.TableView?>
-<?import javafx.scene.control.TextField?>
+<?import javafx.scene.layout.FlowPane?>
 <?import javafx.scene.layout.HBox?>
-<?import javafx.scene.layout.Region?>
 <?import javafx.scene.layout.VBox?>
 
 <VBox xmlns="http://javafx.com/javafx/21"
@@ -17,35 +16,51 @@
 
     <HBox alignment="CENTER_LEFT" spacing="12">
         <VBox spacing="2" HBox.hgrow="ALWAYS">
-            <Label text="Allocation Engine" styleClass="page-title"/>
-            <Label text="Run anti-cheating seat allocation so no same-department students sit adjacently." styleClass="page-subtitle"/>
+            <Label text="Granular Allocation Engine" styleClass="page-title"/>
+            <Label text="Filter eligible cohorts by department and semester, select a seating strategy, and generate room assignments." styleClass="page-subtitle"/>
         </VBox>
         <Button fx:id="viewSeatingButton" text="Open Seating Chart" onAction="#handleOpenSeatingChart" styleClass="btn-secondary"/>
     </HBox>
 
-    <VBox spacing="16" styleClass="card">
-        <Label text="Allocation Parameters" styleClass="card-title"/>
-
+    <VBox spacing="14" styleClass="card">
         <HBox spacing="14" alignment="BOTTOM_LEFT">
             <VBox spacing="5" HBox.hgrow="ALWAYS">
                 <Label text="Select Exam" styleClass="field-label"/>
                 <ComboBox fx:id="examComboBox" maxWidth="Infinity" promptText="Choose an exam"/>
             </VBox>
 
-            <VBox spacing="5" prefWidth="220">
-                <Label text="Target Department(s)" styleClass="field-label"/>
-                <TextField fx:id="departmentFilterField" text="ALL" promptText="ALL or e.g. CSE,EEE"/>
-            </VBox>
-
-            <VBox spacing="5" prefWidth="180">
-                <Label text="Target Semester" styleClass="field-label"/>
-                <ComboBox fx:id="semesterComboBox" maxWidth="Infinity" editable="true" promptText="ALL or e.g. 4"/>
+            <VBox spacing="5" prefWidth="250">
+                <Label text="Seating Strategy" styleClass="field-label"/>
+                <ComboBox fx:id="strategyComboBox" maxWidth="Infinity"/>
             </VBox>
         </HBox>
 
-        <HBox spacing="12" alignment="CENTER_LEFT">
+        <HBox spacing="14">
+            <VBox spacing="8" styleClass="filter-box" HBox.hgrow="ALWAYS">
+                <HBox alignment="CENTER_LEFT" spacing="6">
+                    <Label text="Filter by Department" styleClass="field-label" HBox.hgrow="ALWAYS"/>
+                    <Button text="All" onAction="#handleSelectAllDepartments" styleClass="btn-link"/>
+                    <Button text="Clear" onAction="#handleClearDepartments" styleClass="btn-link"/>
+                </HBox>
+                <FlowPane fx:id="departmentCheckPane" hgap="14" vgap="8"/>
+            </VBox>
+
+            <VBox spacing="8" styleClass="filter-box" HBox.hgrow="ALWAYS">
+                <HBox alignment="CENTER_LEFT" spacing="6">
+                    <Label text="Filter by Semester" styleClass="field-label" HBox.hgrow="ALWAYS"/>
+                    <Button text="All" onAction="#handleSelectAllSemesters" styleClass="btn-link"/>
+                    <Button text="Clear" onAction="#handleClearSemesters" styleClass="btn-link"/>
+                </HBox>
+                <FlowPane fx:id="semesterCheckPane" hgap="14" vgap="8"/>
+            </VBox>
+        </HBox>
+
+        <HBox spacing="14" alignment="CENTER_LEFT">
             <Button fx:id="generateButton" text="Generate Allocations" onAction="#handleGenerateAllocations" styleClass="btn-hero"/>
-            <Label text="Use ALL for multi-department exams, or comma-separated departments (e.g. CSE,EEE,ME)." styleClass="muted-label"/>
+            <VBox spacing="2">
+                <Label fx:id="matchingCountLabel" text="Matching students: 0" styleClass="field-label"/>
+                <Label text="Unchecked groups match all values in that group; check specific items to narrow the cohort." styleClass="muted-label"/>
+            </VBox>
         </HBox>
 
         <Label fx:id="statusLabel" visible="false" managed="false" wrapText="true" maxWidth="Infinity"/>

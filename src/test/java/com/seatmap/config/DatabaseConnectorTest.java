@@ -13,6 +13,7 @@ import java.util.HashSet;
 import java.util.Set;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 @DisplayName("DatabaseConnector")
@@ -42,7 +43,8 @@ class DatabaseConnectorTest {
     void createsRequiredTables() throws SQLException {
         DatabaseConnector.initializeDatabase();
 
-        Set<String> expectedTables = Set.of("admins", "students", "rooms", "exams", "allocations");
+        Set<String> expectedTables = Set.of(
+                "users", "students", "rooms", "exams", "allocations", "room_assignments");
         Set<String> actualTables = new HashSet<>();
 
         String sql = """
@@ -62,5 +64,6 @@ class DatabaseConnectorTest {
 
         assertTrue(actualTables.containsAll(expectedTables),
                 () -> "Missing expected tables. Found: " + actualTables);
+        assertFalse(actualTables.contains("admins"), "Legacy admins table should be dropped");
     }
 }

@@ -4,7 +4,9 @@ import com.seatmap.config.DatabaseConnector;
 import com.seatmap.model.Allocation;
 import com.seatmap.model.Exam;
 import com.seatmap.model.Room;
+import com.seatmap.model.RoomAssignment;
 import com.seatmap.model.Student;
+import com.seatmap.model.User;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.DisplayName;
@@ -14,6 +16,7 @@ import java.sql.SQLException;
 import java.time.LocalDate;
 import java.time.LocalTime;
 import java.util.List;
+import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -25,6 +28,8 @@ class DaoCrudTest {
     private final RoomDAO roomDAO = new RoomDAO();
     private final ExamDAO examDAO = new ExamDAO();
     private final AllocationDAO allocationDAO = new AllocationDAO();
+    private final UserDAO userDAO = new UserDAO();
+    private final RoomAssignmentDAO assignmentDAO = new RoomAssignmentDAO();
 
     @BeforeAll
     static void initDb() throws SQLException {
@@ -37,11 +42,12 @@ class DaoCrudTest {
     }
 
     @Test
-    @DisplayName("performs CRUD, filtered lookup, name search, and manual seat override")
-    void exercisesStudentRoomExamAndAllocationDaos() {
+    @DisplayName("performs CRUD, attendance updates, room assignments, and filtered lookups")
+    void exercisesStudentRoomExamAllocationUserAndAssignmentDaos() {
         Student student = null;
         Room room = null;
         Exam exam = null;
+        User teacher = null;
 
         try {
             student = studentDAO.add(new Student("DAO-101", "Zara_Test%User", "CSE", "DAO-SEM-7"));
@@ -69,15 +75,31 @@ class DaoCrudTest {
             assertTrue(examDAO.update(exam));
             assertEquals("DAO Networks II", examDAO.getById(exam.getId()).orElseThrow().getSubject());
 
+            teacher = userDAO.createUser(new User(
+                    "dao_teacher_" + UUID.randomUUID(),
+                    "$2a$10$dummyhashfortestonly123456789012345678901234567890",
+                    "DAO Test Teacher",
+                    User.ROLE_TEACHER));
+            long teacherId = teacher.getId();
+            assertTrue(userDAO.getAllTeachers().stream().anyMatch(u -> u.getId() == teacherId));
+
+            RoomAssignment assignment = assignmentDAO.assign(exam.getId(), room.getId(), teacher.getId());
+            assertTrue(assignment.getId() > 0);
+            assertEquals(1, assignmentDAO.getByTeacherId(teacher.getId()).size());
+            assertTrue(assignmentDAO.deleteAssignment(assignment.getId()));
+
             Allocation allocation = allocationDAO.saveAllocation(
                     new Allocation(exam.getId(), student.getId(), room.getId(), 0, 0));
-            assertTrue(allocation.getId() > 0);
+            assertEquals(Allocation.STATUS_PENDING, allocation.getStatus());
 
             assertTrue(allocationDAO.updateSeat(allocation.getId(), 2, 3));
+            assertTrue(allocationDAO.updateAttendanceStatus(allocation.getId(), Allocation.STATUS_PRESENT));
+
             List<Allocation> fetched = allocationDAO.getByExamId(exam.getId());
             assertEquals(1, fetched.size());
             assertEquals(2, fetched.get(0).getSeatRow());
             assertEquals(3, fetched.get(0).getSeatCol());
+            assertEquals(Allocation.STATUS_PRESENT, fetched.get(0).getStatus());
 
             assertEquals(1, allocationDAO.clearAllocationsForExam(exam.getId()));
             assertTrue(allocationDAO.getByExamId(exam.getId()).isEmpty());
@@ -90,6 +112,9 @@ class DaoCrudTest {
             }
             if (student != null && student.getId() > 0) {
                 studentDAO.delete(student.getId());
+            }
+            if (teacher != null && teacher.getId() > 0) {
+                userDAO.deleteUser(teacher.getId());
             }
         }
     }

@@ -15,6 +15,9 @@ import com.seatmap.util.AlertHelper;
 import com.seatmap.util.SceneManager;
 import javafx.collections.FXCollections;
 import javafx.fxml.FXML;
+import javafx.geometry.Insets;
+import javafx.geometry.Pos;
+import javafx.scene.Cursor;
 import javafx.scene.control.Button;
 import javafx.scene.control.ComboBox;
 import javafx.scene.control.Label;
@@ -32,7 +35,8 @@ import java.util.Locale;
 import java.util.Map;
 
 /**
- * Controller for {@code seating.fxml} rendering interactive room seat grids and exporting PDF charts.
+ * Controller for {@code seating.fxml} rendering non-overlapping VBox room seat cards
+ * and exporting PDF charts.
  */
 public class SeatingController {
 
@@ -80,13 +84,22 @@ public class SeatingController {
     @FXML
     private Label detailSemesterLabel;
 
+    @FXML
+    private Label detailStatusLabel;
+
+    @FXML
+    private Button markAttendanceButton;
+
     private final ExamDAO examDAO = new ExamDAO();
     private final RoomDAO roomDAO = new RoomDAO();
     private final StudentDAO studentDAO = new StudentDAO();
     private final AllocationDAO allocationDAO = new AllocationDAO();
     private final ExportService exportService = new ExportService();
 
-    private Button selectedTileButton;
+    private VBox selectedCard;
+    private String selectedSeatCode;
+    private Allocation selectedAllocation;
+    private Student selectedStudent;
 
     @FXML
     private void initialize() {
@@ -132,6 +145,25 @@ public class SeatingController {
             }
         }
         renderGrid();
+    }
+
+    @FXML
+    private void handleMarkAttendance() {
+        if (selectedAllocation == null || selectedStudent == null || selectedSeatCode == null) {
+            return;
+        }
+        AlertHelper.promptAttendanceStatus(selectedSeatCode, selectedAllocation, selectedStudent)
+                .ifPresent(newStatus -> {
+                    try {
+                        if (allocationDAO.updateAttendanceStatus(selectedAllocation.getId(), newStatus)) {
+                            selectedAllocation.setStatus(newStatus);
+                            detailStatusLabel.setText(newStatus);
+                        }
+                    } catch (DataAccessException ex) {
+                        AlertHelper.showError("Attendance Update Failed",
+                                "Could not update attendance status:\n" + ex.getMessage());
+                    }
+                });
     }
 
     @FXML
@@ -233,15 +265,15 @@ public class SeatingController {
                 studentsById.put(student.getId(), student);
             }
 
-            Student[][] assignedGrid = new Student[room.getRows()][room.getColumns()];
+            Allocation[][] allocationGrid = new Allocation[room.getRows()][room.getColumns()];
             Map<String, DeptStyle> deptStyles = new LinkedHashMap<>();
 
             for (Allocation allocation : allocations) {
                 int r = allocation.getSeatRow();
                 int c = allocation.getSeatCol();
                 if (r >= 0 && r < room.getRows() && c >= 0 && c < room.getColumns()) {
+                    allocationGrid[r][c] = allocation;
                     Student student = studentsById.get(allocation.getStudentId());
-                    assignedGrid[r][c] = student;
                     if (student != null) {
                         String deptKey = normalizeDept(student.getDepartment());
                         deptStyles.computeIfAbsent(deptKey,
@@ -255,8 +287,10 @@ public class SeatingController {
 
             for (int r = 0; r < room.getRows(); r++) {
                 for (int c = 0; c < room.getColumns(); c++) {
-                    Button tile = createSeatTile(r, c, assignedGrid[r][c], deptStyles);
-                    seatGrid.add(tile, c, r);
+                    Allocation allocation = allocationGrid[r][c];
+                    Student student = allocation == null ? null : studentsById.get(allocation.getStudentId());
+                    VBox card = createSeatCard(r, c, allocation, student, deptStyles);
+                    seatGrid.add(card, c, r);
                 }
             }
         } catch (DataAccessException ex) {
@@ -264,42 +298,44 @@ public class SeatingController {
         }
     }
 
-    private Button createSeatTile(int row, int col, Student student, Map<String, DeptStyle> deptStyles) {
+    private VBox createSeatCard(int row, int col, Allocation allocation, Student student,
+                                Map<String, DeptStyle> deptStyles) {
         String seatCode = "R" + (row + 1) + "-C" + (col + 1);
-        Button button = new Button();
-        button.getStyleClass().add("seat-tile");
+        VBox card = new VBox(4);
+        card.setAlignment(Pos.CENTER);
+        card.setMinWidth(120);
+        card.setPrefWidth(132);
+        card.setMinHeight(85);
+        card.setPadding(new Insets(5));
 
-        VBox content = new VBox(2);
         Label seatLabel = new Label(seatCode);
-        seatLabel.setStyle("-fx-font-size: 10.5px; -fx-font-weight: bold;");
+        seatLabel.setStyle("-fx-font-size: 10.5px; -fx-font-weight: bold; -fx-text-fill: #475569;");
 
-        if (student == null) {
-            button.getStyleClass().add("seat-tile-empty");
+        if (allocation == null || student == null) {
+            card.getStyleClass().add("seat-card-empty");
             Label emptyLabel = new Label("Empty");
             emptyLabel.setStyle("-fx-font-size: 11px; -fx-text-fill: #94A3B8;");
-            content.getChildren().addAll(seatLabel, emptyLabel);
-            button.setGraphic(content);
-            button.setOnAction(e -> selectEmptySeat(button, seatCode));
-            return button;
+            card.getChildren().addAll(seatLabel, emptyLabel);
+            card.setOnMouseClicked(e -> selectEmptySeat(card, seatCode));
+            return card;
         }
 
         DeptStyle style = deptStyles.get(normalizeDept(student.getDepartment()));
         seatLabel.setStyle("-fx-font-size: 10.5px; -fx-font-weight: bold; -fx-text-fill: " + style.textHex() + ";");
 
         Label rollLabel = new Label(student.getRollNumber());
-        rollLabel.setStyle("-fx-font-size: 12px; -fx-font-weight: bold; -fx-text-fill: #0F172A;");
+        rollLabel.setStyle("-fx-font-size: 12px; -fx-font-weight: bold; -fx-text-fill: #0f172a;");
 
         Label deptLabel = new Label(student.getDepartment());
-        deptLabel.setStyle("-fx-font-size: 11px; -fx-font-weight: bold; -fx-text-fill: " + style.textHex() + ";");
+        deptLabel.setStyle("-fx-font-size: 10px; -fx-font-weight: bold; -fx-text-fill: " + style.textHex() + ";");
 
-        content.getChildren().addAll(seatLabel, rollLabel, deptLabel);
-        button.setGraphic(content);
-        button.setStyle(String.format(
-                "-fx-background-color: %s; -fx-border-color: %s;",
+        card.getStyleClass().add("seat-card");
+        card.setCursor(Cursor.HAND);
+        card.setStyle(String.format("-fx-background-color: %s; -fx-border-color: %s;",
                 style.bgHex(), style.borderHex()));
-
-        button.setOnAction(e -> selectOccupiedSeat(button, seatCode, student));
-        return button;
+        card.getChildren().addAll(seatLabel, rollLabel, deptLabel);
+        card.setOnMouseClicked(e -> selectOccupiedSeat(card, seatCode, allocation, student));
+        return card;
     }
 
     private void renderLegend(Map<String, DeptStyle> deptStyles) {
@@ -314,41 +350,58 @@ public class SeatingController {
         }
     }
 
-    private void selectOccupiedSeat(Button button, String seatCode, Student student) {
-        highlightSelectedTile(button);
+    private void selectOccupiedSeat(VBox card, String seatCode, Allocation allocation, Student student) {
+        highlightSelectedCard(card);
+        this.selectedSeatCode = seatCode;
+        this.selectedAllocation = allocation;
+        this.selectedStudent = student;
+
         selectedSeatBadge.setText("Seat " + seatCode + " (Occupied)");
         detailRollLabel.setText(student.getRollNumber());
         detailNameLabel.setText(student.getName());
         detailDeptLabel.setText(student.getDepartment());
         detailSemesterLabel.setText(student.getSemester());
+        detailStatusLabel.setText(allocation.getStatus());
+        markAttendanceButton.setDisable(false);
     }
 
-    private void selectEmptySeat(Button button, String seatCode) {
-        highlightSelectedTile(button);
+    private void selectEmptySeat(VBox card, String seatCode) {
+        highlightSelectedCard(card);
+        this.selectedSeatCode = seatCode;
+        this.selectedAllocation = null;
+        this.selectedStudent = null;
+
         selectedSeatBadge.setText("Seat " + seatCode + " (Unassigned)");
         detailRollLabel.setText("-");
         detailNameLabel.setText("No student assigned");
         detailDeptLabel.setText("-");
         detailSemesterLabel.setText("-");
+        detailStatusLabel.setText("-");
+        markAttendanceButton.setDisable(true);
     }
 
-    private void highlightSelectedTile(Button button) {
-        if (selectedTileButton != null) {
-            selectedTileButton.getStyleClass().remove("seat-tile-selected");
+    private void highlightSelectedCard(VBox card) {
+        if (selectedCard != null) {
+            selectedCard.getStyleClass().remove("seat-card-selected");
         }
-        selectedTileButton = button;
-        if (!button.getStyleClass().contains("seat-tile-selected")) {
-            button.getStyleClass().add("seat-tile-selected");
+        selectedCard = card;
+        if (!card.getStyleClass().contains("seat-card-selected")) {
+            card.getStyleClass().add("seat-card-selected");
         }
     }
 
     private void clearSeatInspector() {
-        selectedTileButton = null;
+        selectedCard = null;
+        selectedSeatCode = null;
+        selectedAllocation = null;
+        selectedStudent = null;
         selectedSeatBadge.setText("No seat selected");
         detailRollLabel.setText("-");
         detailNameLabel.setText("-");
         detailDeptLabel.setText("-");
         detailSemesterLabel.setText("-");
+        detailStatusLabel.setText("-");
+        markAttendanceButton.setDisable(true);
     }
 
     private static String normalizeDept(String department) {

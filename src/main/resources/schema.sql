@@ -1,9 +1,13 @@
--- Seatmap Exam Seat Allocation System - Foundational Schema
+-- Seatmap Exam Seat Allocation System - Phase 4 Schema (RBAC, Assignments & Attendance)
 
-CREATE TABLE IF NOT EXISTS admins (
+DROP TABLE IF EXISTS admins;
+
+CREATE TABLE IF NOT EXISTS users (
     id BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
     username TEXT NOT NULL UNIQUE,
-    password_hash TEXT NOT NULL
+    password_hash TEXT NOT NULL,
+    full_name TEXT NOT NULL,
+    role VARCHAR(32) NOT NULL CHECK (role IN ('MASTER_ADMIN', 'TEACHER'))
 );
 
 CREATE TABLE IF NOT EXISTS students (
@@ -36,10 +40,31 @@ CREATE TABLE IF NOT EXISTS allocations (
     room_id BIGINT NOT NULL REFERENCES rooms(id) ON DELETE CASCADE,
     seat_row INTEGER NOT NULL CHECK (seat_row >= 0),
     seat_col INTEGER NOT NULL CHECK (seat_col >= 0),
+    status VARCHAR(20) NOT NULL DEFAULT 'PENDING',
     UNIQUE (exam_id, student_id),
     UNIQUE (exam_id, room_id, seat_row, seat_col)
+);
+
+ALTER TABLE allocations
+    ADD COLUMN IF NOT EXISTS status VARCHAR(20) NOT NULL DEFAULT 'PENDING';
+
+ALTER TABLE allocations
+    DROP CONSTRAINT IF EXISTS chk_allocations_status;
+
+ALTER TABLE allocations
+    ADD CONSTRAINT chk_allocations_status CHECK (status IN ('PENDING', 'PRESENT', 'ABSENT'));
+
+CREATE TABLE IF NOT EXISTS room_assignments (
+    id BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+    exam_id BIGINT NOT NULL REFERENCES exams(id) ON DELETE CASCADE,
+    room_id BIGINT NOT NULL REFERENCES rooms(id) ON DELETE CASCADE,
+    teacher_id BIGINT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    UNIQUE (exam_id, room_id, teacher_id)
 );
 
 CREATE INDEX IF NOT EXISTS idx_allocations_exam_id ON allocations (exam_id);
 CREATE INDEX IF NOT EXISTS idx_allocations_student_id ON allocations (student_id);
 CREATE INDEX IF NOT EXISTS idx_allocations_room_id ON allocations (room_id);
+CREATE INDEX IF NOT EXISTS idx_room_assignments_exam_id ON room_assignments (exam_id);
+CREATE INDEX IF NOT EXISTS idx_room_assignments_room_id ON room_assignments (room_id);
+CREATE INDEX IF NOT EXISTS idx_room_assignments_teacher_id ON room_assignments (teacher_id);

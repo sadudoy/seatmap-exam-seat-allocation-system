@@ -4,9 +4,9 @@ import com.seatmap.dao.ExamDAO;
 import com.seatmap.dao.RoomDAO;
 import com.seatmap.dao.StudentDAO;
 import com.seatmap.exception.DataAccessException;
-import com.seatmap.model.Admin;
 import com.seatmap.model.Exam;
 import com.seatmap.model.Room;
+import com.seatmap.model.User;
 import com.seatmap.util.AlertHelper;
 import com.seatmap.util.SceneManager;
 import javafx.beans.property.SimpleStringProperty;
@@ -25,12 +25,12 @@ import java.io.IOException;
 import java.util.List;
 
 /**
- * Main workspace shell managing sidebar navigation, session logout, and live overview statistics.
+ * Main role-aware workspace shell managing sidebar navigation, RBAC visibility, and logout.
  */
 public class DashboardController {
 
     @FXML
-    private Label adminBadgeLabel;
+    private Label userBadgeLabel;
 
     @FXML
     private Button navOverviewBtn;
@@ -49,6 +49,15 @@ public class DashboardController {
 
     @FXML
     private Button navSeatingBtn;
+
+    @FXML
+    private Button navUserManagementBtn;
+
+    @FXML
+    private Button navAssignmentsBtn;
+
+    @FXML
+    private Button navMyInvigilationsBtn;
 
     @FXML
     private StackPane contentArea;
@@ -86,17 +95,20 @@ public class DashboardController {
 
     @FXML
     private void initialize() {
-        Admin admin = SceneManager.getCurrentAdmin();
-        if (admin != null) {
-            adminBadgeLabel.setText("Signed in as: " + admin.getUsername());
-        }
-
         overviewExamSubjectCol.setCellValueFactory(c -> new SimpleStringProperty(c.getValue().getSubject()));
         overviewExamDateCol.setCellValueFactory(c -> new SimpleStringProperty(
                 c.getValue().getExamDate() != null ? c.getValue().getExamDate().toString() : ""));
         overviewExamTimeCol.setCellValueFactory(c -> new SimpleStringProperty(
                 c.getValue().getStartTime() != null ? c.getValue().getStartTime().toString() : ""));
 
+        User currentUser = SceneManager.getCurrentUser();
+        boolean isTeacher = currentUser != null && currentUser.isTeacher();
+
+        if (currentUser != null) {
+            userBadgeLabel.setText(currentUser.getFullName() + "\nRole: " + currentUser.getRole());
+        }
+
+        configureNavigationByRole(isTeacher);
         setActiveNavButton(navOverviewBtn);
         refreshOverviewStats();
     }
@@ -137,11 +149,38 @@ public class DashboardController {
         loadContentView("seating.fxml", navSeatingBtn);
     }
 
+    @FXML
+    private void showUserManagement() {
+        loadContentView("user_management.fxml", navUserManagementBtn);
+    }
+
+    @FXML
+    private void showAssignments() {
+        loadContentView("assignments.fxml", navAssignmentsBtn);
+    }
+
+    @FXML
+    private void showMyInvigilations() {
+        FXMLLoader loader = loadContentView("my_invigilations.fxml", navMyInvigilationsBtn);
+        if (loader != null) {
+            MyInvigilationsController controller = loader.getController();
+            controller.setOnOpenAttendance(this::openAttendanceForAssignment);
+        }
+    }
+
     public void openSeatingChartForExam(Exam exam) {
         FXMLLoader loader = loadContentView("seating.fxml", navSeatingBtn);
         if (loader != null && exam != null) {
             SeatingController controller = loader.getController();
             controller.selectExam(exam);
+        }
+    }
+
+    public void openAttendanceForAssignment(Exam exam, Room room) {
+        FXMLLoader loader = loadContentView("attendance.fxml", navMyInvigilationsBtn);
+        if (loader != null) {
+            AttendanceController controller = loader.getController();
+            controller.loadAssignment(exam, room, this::showMyInvigilations);
         }
     }
 
@@ -165,8 +204,26 @@ public class DashboardController {
 
     @FXML
     private void handleLogout() {
-        SceneManager.setCurrentAdmin(null);
+        SceneManager.setCurrentUser(null);
         SceneManager.showLoginScreen();
+    }
+
+    private void configureNavigationByRole(boolean isTeacher) {
+        setButtonVisibility(navOverviewBtn, true);
+        setButtonVisibility(navStudentsBtn, true);
+        setButtonVisibility(navRoomsBtn, true);
+        setButtonVisibility(navExamsBtn, true);
+        setButtonVisibility(navAllocationBtn, true);
+        setButtonVisibility(navSeatingBtn, true);
+
+        setButtonVisibility(navUserManagementBtn, !isTeacher);
+        setButtonVisibility(navAssignmentsBtn, !isTeacher);
+        setButtonVisibility(navMyInvigilationsBtn, isTeacher);
+    }
+
+    private static void setButtonVisibility(Button button, boolean visible) {
+        button.setVisible(visible);
+        button.setManaged(visible);
     }
 
     private FXMLLoader loadContentView(String fxmlName, Button navButton) {
@@ -184,7 +241,10 @@ public class DashboardController {
 
     private void setActiveNavButton(Button activeButton) {
         List<Button> navButtons = List.of(
-                navOverviewBtn, navStudentsBtn, navRoomsBtn, navExamsBtn, navAllocationBtn, navSeatingBtn);
+                navOverviewBtn, navStudentsBtn, navRoomsBtn, navExamsBtn,
+                navAllocationBtn, navSeatingBtn, navUserManagementBtn,
+                navAssignmentsBtn, navMyInvigilationsBtn
+        );
         for (Button button : navButtons) {
             button.getStyleClass().remove("nav-button-active");
         }

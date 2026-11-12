@@ -1,24 +1,33 @@
 package com.seatmap.util;
 
-import com.seatmap.dao.AdminDAO;
+import com.seatmap.dao.AllocationDAO;
+import com.seatmap.dao.ExamDAO;
+import com.seatmap.dao.RoomAssignmentDAO;
 import com.seatmap.dao.RoomDAO;
 import com.seatmap.dao.StudentDAO;
+import com.seatmap.dao.UserDAO;
+import com.seatmap.model.Exam;
 import com.seatmap.model.Room;
 import com.seatmap.model.Student;
+import com.seatmap.model.User;
+import com.seatmap.service.AllocationService;
 import com.seatmap.service.AuthService;
 
+import java.time.LocalDate;
+import java.time.LocalTime;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Random;
 
 /**
- * Seeds default administrator and realistic bulk demo data when database tables are empty.
+ * Seeds default RBAC users, exam, rooms, students, invigilation assignment, and initial allocations.
  */
 public final class DataSeeder {
 
-    public static final int DEFAULT_STUDENT_COUNT = 400;
+    public static final int DEFAULT_STUDENT_COUNT = 300;
 
     private static final String[] FIRST_NAMES = {
             "Aarav", "Adnan", "Aisha", "Alice", "Anika", "Arif", "Ayesha", "Bob",
@@ -36,20 +45,30 @@ public final class DataSeeder {
     private static final String[] DEPARTMENTS = {"CSE", "EEE", "ME", "CE"};
     private static final String[] SEMESTERS = {"1", "2", "3", "4", "5", "6", "7", "8"};
 
-    private final AdminDAO adminDAO;
+    private final UserDAO userDAO;
     private final StudentDAO studentDAO;
     private final RoomDAO roomDAO;
+    private final ExamDAO examDAO;
+    private final RoomAssignmentDAO roomAssignmentDAO;
+    private final AllocationDAO allocationDAO;
     private final AuthService authService;
+    private final AllocationService allocationService;
 
     public DataSeeder() {
-        this(new AdminDAO(), new StudentDAO(), new RoomDAO());
+        this(new UserDAO(), new StudentDAO(), new RoomDAO(), new ExamDAO(),
+                new RoomAssignmentDAO(), new AllocationDAO());
     }
 
-    public DataSeeder(AdminDAO adminDAO, StudentDAO studentDAO, RoomDAO roomDAO) {
-        this.adminDAO = adminDAO;
+    public DataSeeder(UserDAO userDAO, StudentDAO studentDAO, RoomDAO roomDAO, ExamDAO examDAO,
+                      RoomAssignmentDAO roomAssignmentDAO, AllocationDAO allocationDAO) {
+        this.userDAO = userDAO;
         this.studentDAO = studentDAO;
         this.roomDAO = roomDAO;
-        this.authService = new AuthService(adminDAO);
+        this.examDAO = examDAO;
+        this.roomAssignmentDAO = roomAssignmentDAO;
+        this.allocationDAO = allocationDAO;
+        this.authService = new AuthService(userDAO);
+        this.allocationService = new AllocationService(studentDAO, roomDAO, allocationDAO);
     }
 
     /**
@@ -60,17 +79,20 @@ public final class DataSeeder {
     }
 
     /**
-     * Seeds default admin, bulk students, and rooms only when their respective tables are empty.
+     * Seeds default users, students, rooms, exam, and initial teacher assignment if empty.
      */
     public void seed() {
-        seedDefaultAdmin();
+        seedDefaultUsers();
         seedBulkStudents();
         seedRooms();
+        boolean examNewlySeeded = seedDefaultExam();
+        seedDefaultAssignmentAndAllocations(examNewlySeeded);
     }
 
-    private void seedDefaultAdmin() {
-        if (adminDAO.count() == 0) {
-            authService.registerAdmin("admin", "admin123");
+    private void seedDefaultUsers() {
+        if (userDAO.count() == 0) {
+            authService.registerUser("admin", "admin123", "Master Administrator", User.ROLE_MASTER_ADMIN);
+            authService.registerUser("teacher1", "teacher123", "Prof. Sarah Ahmed", User.ROLE_TEACHER);
         }
     }
 
@@ -105,28 +127,43 @@ public final class DataSeeder {
             return;
         }
 
-        // Initial 2 rooms (41 seats) + 14 larger halls = 16 rooms (557 total seats)
-        List<Room> rooms = List.of(
-                new Room("Hall-101", 25, 5, 5),
-                new Room("Hall-102", 16, 4, 4),
-                new Room("Hall-201", 36, 6, 6),
-                new Room("Hall-202", 36, 6, 6),
-                new Room("Hall-203", 36, 6, 6),
-                new Room("Hall-204", 36, 6, 6),
-                new Room("Hall-205", 36, 6, 6),
-                new Room("Hall-206", 36, 6, 6),
-                new Room("Hall-301", 40, 8, 5),
-                new Room("Hall-302", 40, 8, 5),
-                new Room("Hall-303", 40, 8, 5),
-                new Room("Hall-304", 40, 8, 5),
-                new Room("Hall-305", 40, 8, 5),
-                new Room("Hall-306", 40, 8, 5),
-                new Room("Hall-401", 30, 6, 5),
-                new Room("Hall-402", 30, 6, 5)
-        );
+        // 3 rooms totaling 320 seats (sufficient for 300 students with anti-cheating spacing)
+        roomDAO.add(new Room("Hall-101", 110, 10, 11));
+        roomDAO.add(new Room("Hall-102", 110, 10, 11));
+        roomDAO.add(new Room("Hall-103", 100, 10, 10));
+    }
 
-        for (Room room : rooms) {
-            roomDAO.add(room);
+    private boolean seedDefaultExam() {
+        if (!examDAO.getAll().isEmpty()) {
+            return false;
+        }
+        examDAO.add(new Exam(
+                "Engineering Final Examination",
+                LocalDate.of(2026, 12, 15),
+                LocalTime.of(9, 30)
+        ));
+        return true;
+    }
+
+    private void seedDefaultAssignmentAndAllocations(boolean examNewlySeeded) {
+        List<Exam> exams = examDAO.getAll();
+        List<Room> rooms = roomDAO.getAll();
+        Optional<User> teacher1 = userDAO.getByUsername("teacher1");
+
+        if (exams.isEmpty() || rooms.isEmpty() || teacher1.isEmpty()) {
+            return;
+        }
+
+        Exam primaryExam = exams.get(0);
+        Room room1 = rooms.get(0);
+
+        if (roomAssignmentDAO.getAll().isEmpty()) {
+            roomAssignmentDAO.assign(primaryExam.getId(), room1.getId(), teacher1.get().getId());
+        }
+
+        if (examNewlySeeded && allocationDAO.getByExamId(primaryExam.getId()).isEmpty()
+                && !studentDAO.getAll().isEmpty()) {
+            allocationService.allocateAndSave(primaryExam, "ALL", "");
         }
     }
 }

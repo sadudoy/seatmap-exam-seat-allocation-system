@@ -84,8 +84,16 @@
                 <Label fx:id="detailSemesterLabel" text="-"/>
             </VBox>
 
+            <VBox spacing="3">
+                <Label text="Attendance Status" styleClass="field-label"/>
+                <Label fx:id="detailStatusLabel" text="-"/>
+            </VBox>
+
+            <Button fx:id="markAttendanceButton" text="Mark Attendance" onAction="#handleMarkAttendance"
+                    styleClass="btn-primary" maxWidth="Infinity" disable="true"/>
+
             <Region VBox.vgrow="ALWAYS"/>
-            <Label text="Tip: Click any occupied desk tile to view the assigned student." wrapText="true" styleClass="muted-label"/>
+            <Label text="Tip: Click any occupied desk card to view student details or mark attendance." wrapText="true" styleClass="muted-label"/>
         </VBox>
     </HBox>
 </VBox>

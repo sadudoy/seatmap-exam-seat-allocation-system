@@ -4,12 +4,16 @@ import com.seatmap.config.DatabaseConnector;
 import com.seatmap.exception.DataAccessException;
 import com.seatmap.model.Student;
 
+import java.sql.Array;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Statement;
+import java.util.ArrayList;
 import java.util.List;
+import java.util.Locale;
+import java.util.Objects;
 import java.util.Optional;
 
 /**
@@ -134,6 +138,55 @@ public class StudentDAO {
                 ORDER BY roll_number
                 """;
         return JdbcSupport.queryList(sql, ps -> ps.setString(1, pattern), this::mapRow);
+    }
+
+    /**
+     * Fetches students filtered by optional lists of departments and numeric semesters.
+     * Passing {@code null} or an empty list for either parameter skips filtering on that dimension.
+     */
+    public List<Student> getFilteredStudents(List<String> depts, List<Integer> sems) {
+        List<String> normalizedDepts = depts == null ? List.of() : depts.stream()
+                .filter(d -> d != null && !d.isBlank())
+                .map(d -> d.trim().toLowerCase(Locale.ROOT))
+                .distinct()
+                .toList();
+        List<String> normalizedSems = sems == null ? List.of() : sems.stream()
+                .filter(Objects::nonNull)
+                .map(String::valueOf)
+                .distinct()
+                .toList();
+
+        StringBuilder sql = new StringBuilder(
+                "SELECT id, roll_number, name, department, semester FROM students WHERE 1=1");
+        if (!normalizedDepts.isEmpty()) {
+            sql.append(" AND LOWER(department) = ANY(?)");
+        }
+        if (!normalizedSems.isEmpty()) {
+            sql.append(" AND LOWER(semester) = ANY(?)");
+        }
+        sql.append(" ORDER BY roll_number");
+
+        try (Connection connection = DatabaseConnector.getConnection();
+             PreparedStatement statement = connection.prepareStatement(sql.toString())) {
+            int paramIdx = 1;
+            if (!normalizedDepts.isEmpty()) {
+                Array deptArray = connection.createArrayOf("text", normalizedDepts.toArray(String[]::new));
+                statement.setArray(paramIdx++, deptArray);
+            }
+            if (!normalizedSems.isEmpty()) {
+                Array semArray = connection.createArrayOf("text", normalizedSems.toArray(String[]::new));
+                statement.setArray(paramIdx++, semArray);
+            }
+            try (ResultSet rs = statement.executeQuery()) {
+                List<Student> results = new ArrayList<>();
+                while (rs.next()) {
+                    results.add(mapRow(rs));
+                }
+                return results;
+            }
+        } catch (SQLException ex) {
+            throw new DataAccessException("Filtered student query failed: " + ex.getMessage(), ex.getSQLState(), ex);
+        }
     }
 
     private Student mapRow(ResultSet rs) throws SQLException {

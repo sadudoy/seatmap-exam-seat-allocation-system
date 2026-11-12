@@ -1,7 +1,7 @@
 package com.seatmap.service;
 
 import com.seatmap.config.DatabaseConnector;
-import com.seatmap.model.Admin;
+import com.seatmap.model.User;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeAll;
@@ -14,6 +14,7 @@ import java.sql.SQLException;
 import java.util.Optional;
 import java.util.UUID;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
@@ -31,10 +32,10 @@ class AuthServiceTest {
     }
 
     @AfterEach
-    void cleanupCreatedAdmin() throws SQLException {
+    void cleanupCreatedUser() throws SQLException {
         if (createdTestUsername != null) {
             try (Connection conn = DatabaseConnector.getConnection();
-                 PreparedStatement ps = conn.prepareStatement("DELETE FROM admins WHERE username = ?")) {
+                 PreparedStatement ps = conn.prepareStatement("DELETE FROM users WHERE username = ?")) {
                 ps.setString(1, createdTestUsername);
                 ps.executeUpdate();
             }
@@ -72,19 +73,23 @@ class AuthServiceTest {
     }
 
     @Test
-    @DisplayName("registers admin with hashed password and authenticates via login")
-    void registersAndLogsInAdmin() {
-        createdTestUsername = "test_admin_" + UUID.randomUUID();
-        String password = "SecretAdminPassword#99";
+    @DisplayName("registers RBAC user with hashed password and authenticates via login")
+    void registersAndLogsInUser() {
+        createdTestUsername = "test_teacher_" + UUID.randomUUID();
+        String password = "SecretTeacherPassword#99";
 
-        Admin created = authService.registerAdmin(createdTestUsername, password);
+        User created = authService.registerUser(
+                createdTestUsername, password, "Test Teacher", User.ROLE_TEACHER);
         assertTrue(created.getId() > 0);
         assertNotEquals(password, created.getPasswordHash());
+        assertEquals(User.ROLE_TEACHER, created.getRole());
 
-        Optional<Admin> valid = authService.login(createdTestUsername, password);
-        Optional<Admin> invalid = authService.login(createdTestUsername, "WrongPassword");
+        Optional<User> valid = authService.login(createdTestUsername, password);
+        Optional<User> invalid = authService.login(createdTestUsername, "WrongPassword");
 
         assertTrue(valid.isPresent());
+        assertEquals("Test Teacher", valid.get().getFullName());
+        assertTrue(valid.get().isTeacher());
         assertFalse(invalid.isPresent());
     }
 }

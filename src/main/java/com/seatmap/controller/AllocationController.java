@@ -12,20 +12,24 @@ import com.seatmap.util.AlertHelper;
 import javafx.beans.property.SimpleStringProperty;
 import javafx.collections.FXCollections;
 import javafx.fxml.FXML;
+import javafx.scene.control.CheckBox;
 import javafx.scene.control.ComboBox;
 import javafx.scene.control.Label;
 import javafx.scene.control.TableColumn;
 import javafx.scene.control.TableView;
-import javafx.scene.control.TextField;
+import javafx.scene.layout.FlowPane;
 import javafx.util.StringConverter;
 
-import java.util.LinkedHashSet;
+import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.List;
 import java.util.Set;
+import java.util.TreeSet;
 import java.util.function.Consumer;
 
 /**
- * Controller for {@code allocation.fxml} executing automated anti-cheating seat allocation.
+ * Controller for {@code allocation.fxml} supporting multi-department, multi-semester
+ * granular cohort filtering and seating strategy execution.
  */
 public class AllocationController {
 
@@ -33,10 +37,16 @@ public class AllocationController {
     private ComboBox<Exam> examComboBox;
 
     @FXML
-    private TextField departmentFilterField;
+    private ComboBox<String> strategyComboBox;
 
     @FXML
-    private ComboBox<String> semesterComboBox;
+    private FlowPane departmentCheckPane;
+
+    @FXML
+    private FlowPane semesterCheckPane;
+
+    @FXML
+    private Label matchingCountLabel;
 
     @FXML
     private Label statusLabel;
@@ -63,6 +73,8 @@ public class AllocationController {
     private final StudentDAO studentDAO = new StudentDAO();
     private final AllocationService allocationService = new AllocationService();
 
+    private final List<CheckBox> departmentCheckBoxes = new ArrayList<>();
+    private final List<CheckBox> semesterCheckBoxes = new ArrayList<>();
     private Consumer<Exam> onOpenSeatingChart;
 
     public void setOnOpenSeatingChart(Consumer<Exam> onOpenSeatingChart) {
@@ -72,8 +84,9 @@ public class AllocationController {
     @FXML
     private void initialize() {
         configureExamComboBox();
+        configureStrategyComboBox();
         configureUnallocatedTable();
-        loadDropdownOptions();
+        loadOptions();
     }
 
     @FXML
@@ -84,14 +97,13 @@ public class AllocationController {
             return;
         }
 
-        String targetDept = departmentFilterField.getText() == null ? "" : departmentFilterField.getText().trim();
-        String selectedSem = semesterComboBox.getEditor().getText() != null
-                ? semesterComboBox.getEditor().getText().trim()
-                : (semesterComboBox.getValue() == null ? "" : semesterComboBox.getValue().trim());
-        String effectiveSem = selectedSem.equalsIgnoreCase("ALL") ? "" : selectedSem;
+        List<String> selectedDepartments = getSelectedDepartments();
+        List<Integer> selectedSemesters = getSelectedSemesters();
+        String strategy = strategyComboBox.getValue();
 
         try {
-            AllocationResult result = allocationService.allocateAndSave(selectedExam, targetDept, effectiveSem);
+            AllocationResult result = allocationService.runAllocation(
+                    selectedExam.getId(), selectedDepartments, selectedSemesters, strategy);
             int seatedCount = result.allocations().size();
             int unallocatedCount = result.unallocatedStudents().size();
 
@@ -99,18 +111,17 @@ public class AllocationController {
             summaryCountLabel.setText(seatedCount + " seated, " + unallocatedCount + " unallocated");
 
             if (seatedCount == 0 && unallocatedCount == 0) {
-                showStatusBanner("No eligible students matched the selected filters.", false);
+                showStatusBanner("No eligible students matched the selected department/semester filters.", false);
                 AlertHelper.showWarning("No Students Found",
-                        "No students matched the selected department/semester filter.");
+                        "No students matched the selected department and semester filters.");
             } else if (!result.hasUnallocatedStudents()) {
-                showStatusBanner("Allocation complete: All " + seatedCount
-                        + " eligible student(s) seated with anti-cheating separation.", true);
+                showStatusBanner("Allocation complete (" + strategy + "): Seated all "
+                        + seatedCount + " matching student(s).", true);
                 AlertHelper.showInfo("Allocation Successful",
-                        "All " + seatedCount + " eligible student(s) were allocated seats successfully.");
+                        "Seated all " + seatedCount + " matching student(s) using " + strategy + ".");
             } else {
-                showStatusBanner("Partial allocation: Seated " + seatedCount + " student(s), "
-                        + unallocatedCount + " student(s) unallocated due to room capacity or anti-cheating constraints.",
-                        false);
+                showStatusBanner("Partial allocation (" + strategy + "): Seated " + seatedCount
+                        + " student(s), " + unallocatedCount + " unallocated.", false);
                 AlertHelper.showWarning("Partial Allocation",
                         "Seated " + seatedCount + " student(s), but " + unallocatedCount
                                 + " student(s) could not be placed. See the table below.");
@@ -118,6 +129,26 @@ public class AllocationController {
         } catch (ServiceException | DataAccessException | IllegalArgumentException ex) {
             AlertHelper.showError("Allocation Error", "Failed to generate allocations:\n" + ex.getMessage());
         }
+    }
+
+    @FXML
+    private void handleSelectAllDepartments() {
+        setAllChecked(departmentCheckBoxes, true);
+    }
+
+    @FXML
+    private void handleClearDepartments() {
+        setAllChecked(departmentCheckBoxes, false);
+    }
+
+    @FXML
+    private void handleSelectAllSemesters() {
+        setAllChecked(semesterCheckBoxes, true);
+    }
+
+    @FXML
+    private void handleClearSemesters() {
+        setAllChecked(semesterCheckBoxes, false);
     }
 
     @FXML
@@ -144,6 +175,14 @@ public class AllocationController {
         });
     }
 
+    private void configureStrategyComboBox() {
+        strategyComboBox.setItems(FXCollections.observableArrayList(
+                AllocationService.STRATEGY_ANTI_CHEATING_MIX,
+                AllocationService.STRATEGY_SEQUENTIAL
+        ));
+        strategyComboBox.getSelectionModel().selectFirst();
+    }
+
     private void configureUnallocatedTable() {
         unallocRollCol.setCellValueFactory(c -> new SimpleStringProperty(c.getValue().getRollNumber()));
         unallocNameCol.setCellValueFactory(c -> new SimpleStringProperty(c.getValue().getName()));
@@ -151,7 +190,7 @@ public class AllocationController {
         unallocSemCol.setCellValueFactory(c -> new SimpleStringProperty(c.getValue().getSemester()));
     }
 
-    private void loadDropdownOptions() {
+    private void loadOptions() {
         try {
             List<Exam> exams = examDAO.getAll();
             examComboBox.setItems(FXCollections.observableArrayList(exams));
@@ -159,17 +198,86 @@ public class AllocationController {
                 examComboBox.getSelectionModel().selectFirst();
             }
 
-            Set<String> semesters = new LinkedHashSet<>();
-            semesters.add("ALL");
+            Set<String> departments = new TreeSet<>(String.CASE_INSENSITIVE_ORDER);
+            Set<Integer> semesters = new TreeSet<>();
             for (Student student : studentDAO.getAll()) {
+                if (student.getDepartment() != null && !student.getDepartment().isBlank()) {
+                    departments.add(student.getDepartment().trim().toUpperCase());
+                }
                 if (student.getSemester() != null && !student.getSemester().isBlank()) {
-                    semesters.add(student.getSemester().trim());
+                    try {
+                        semesters.add(Integer.parseInt(student.getSemester().trim()));
+                    } catch (NumberFormatException ignored) {
+                        // Ignore non-numeric semester labels in numeric filter list.
+                    }
                 }
             }
-            semesterComboBox.setItems(FXCollections.observableArrayList(semesters));
-            semesterComboBox.getSelectionModel().selectFirst();
+
+            populateDepartmentCheckBoxes(departments);
+            populateSemesterCheckBoxes(semesters);
+            updateMatchingCountPreview();
         } catch (DataAccessException ex) {
-            AlertHelper.showError("Database Error", "Failed to load exams or semesters:\n" + ex.getMessage());
+            AlertHelper.showError("Database Error", "Failed to load exams or student filters:\n" + ex.getMessage());
+        }
+    }
+
+    private void populateDepartmentCheckBoxes(Set<String> departments) {
+        departmentCheckPane.getChildren().clear();
+        departmentCheckBoxes.clear();
+        for (String dept : departments) {
+            CheckBox cb = new CheckBox(dept);
+            cb.setOnAction(e -> updateMatchingCountPreview());
+            departmentCheckBoxes.add(cb);
+            departmentCheckPane.getChildren().add(cb);
+        }
+    }
+
+    private void populateSemesterCheckBoxes(Set<Integer> semesters) {
+        semesterCheckPane.getChildren().clear();
+        semesterCheckBoxes.clear();
+        List<Integer> sorted = new ArrayList<>(semesters);
+        sorted.sort(Comparator.naturalOrder());
+        for (Integer sem : sorted) {
+            CheckBox cb = new CheckBox("Sem " + sem);
+            cb.setUserData(sem);
+            cb.setOnAction(e -> updateMatchingCountPreview());
+            semesterCheckBoxes.add(cb);
+            semesterCheckPane.getChildren().add(cb);
+        }
+    }
+
+    private void setAllChecked(List<CheckBox> boxes, boolean checked) {
+        for (CheckBox cb : boxes) {
+            cb.setSelected(checked);
+        }
+        updateMatchingCountPreview();
+    }
+
+    private List<String> getSelectedDepartments() {
+        return departmentCheckBoxes.stream()
+                .filter(CheckBox::isSelected)
+                .map(CheckBox::getText)
+                .toList();
+    }
+
+    private List<Integer> getSelectedSemesters() {
+        return semesterCheckBoxes.stream()
+                .filter(CheckBox::isSelected)
+                .map(cb -> (Integer) cb.getUserData())
+                .toList();
+    }
+
+    private void updateMatchingCountPreview() {
+        try {
+            List<String> depts = getSelectedDepartments();
+            List<Integer> sems = getSelectedSemesters();
+            int count = studentDAO.getFilteredStudents(depts, sems).size();
+            String deptText = depts.isEmpty() ? "All Depts" : String.join(", ", depts);
+            String semText = sems.isEmpty() ? "All Sems"
+                    : "Sem " + sems.stream().map(String::valueOf).reduce((a, b) -> a + ", " + b).orElse("");
+            matchingCountLabel.setText("Matching students: " + count + " (" + deptText + " | " + semText + ")");
+        } catch (DataAccessException ex) {
+            matchingCountLabel.setText("Matching students: unavailable");
         }
     }
 

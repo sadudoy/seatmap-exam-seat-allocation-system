@@ -1,7 +1,7 @@
 package com.seatmap.controller;
 
 import com.seatmap.exception.ServiceException;
-import com.seatmap.model.Admin;
+import com.seatmap.model.User;
 import com.seatmap.service.AuthService;
 import com.seatmap.util.AlertHelper;
 import com.seatmap.util.SceneManager;
@@ -62,9 +62,9 @@ public class LoginController {
         }
 
         try {
-            Optional<Admin> authenticated = authService.login(username, password);
+            Optional<User> authenticated = authService.login(username, password);
             if (authenticated.isPresent()) {
-                SceneManager.setCurrentAdmin(authenticated.get());
+                SceneManager.setCurrentUser(authenticated.get());
                 SceneManager.showDashboardScreen();
             } else {
                 showInlineError("Invalid username or password.");

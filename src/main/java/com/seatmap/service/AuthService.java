@@ -1,34 +1,32 @@
 package com.seatmap.service;
 
-import com.seatmap.dao.AdminDAO;
+import com.seatmap.dao.UserDAO;
 import com.seatmap.exception.DataAccessException;
 import com.seatmap.exception.ServiceException;
-import com.seatmap.model.Admin;
+import com.seatmap.model.User;
 import org.mindrot.jbcrypt.BCrypt;
 
+import java.util.Locale;
 import java.util.Optional;
 
 /**
- * Handles administrator registration and authentication using BCrypt password hashing.
+ * Handles user registration and role-aware authentication using BCrypt password hashing.
  */
 public class AuthService {
 
     private static final int BCRYPT_WORK_FACTOR = 10;
-    private final AdminDAO adminDAO;
+    private final UserDAO userDAO;
 
     public AuthService() {
-        this(new AdminDAO());
+        this(new UserDAO());
     }
 
-    public AuthService(AdminDAO adminDAO) {
-        this.adminDAO = adminDAO;
+    public AuthService(UserDAO userDAO) {
+        this.userDAO = userDAO;
     }
 
     /**
      * Hashes a plain-text password using BCrypt.
-     *
-     * @param plainPassword plain-text password
-     * @return BCrypt hash
      */
     public String hashPassword(String plainPassword) {
         if (plainPassword == null || plainPassword.isBlank()) {
@@ -39,10 +37,6 @@ public class AuthService {
 
     /**
      * Verifies a plain-text password against a stored BCrypt hash.
-     *
-     * @param plainPassword plain-text password candidate
-     * @param passwordHash  stored BCrypt hash
-     * @return {@code true} if the password matches the hash
      */
     public boolean verifyPassword(String plainPassword, String passwordHash) {
         if (plainPassword == null || plainPassword.isEmpty()
@@ -57,51 +51,58 @@ public class AuthService {
     }
 
     /**
-     * Registers a new administrator with a BCrypt-hashed password.
-     *
-     * @param username      unique username
-     * @param plainPassword plain-text password (never persisted directly)
-     * @return persisted {@link Admin}
+     * Registers a new user (Master Admin or Teacher) with a BCrypt-hashed password.
      */
-    public Admin registerAdmin(String username, String plainPassword) {
+    public User registerUser(String username, String plainPassword, String fullName, String role) {
         if (username == null || username.isBlank()) {
             throw new IllegalArgumentException("Username must not be blank");
         }
+        if (fullName == null || fullName.isBlank()) {
+            throw new IllegalArgumentException("Full name must not be blank");
+        }
+        String normalizedRole = normalizeRole(role);
         String normalizedUsername = username.trim();
         String hash = hashPassword(plainPassword);
 
         try {
-            if (adminDAO.getByUsername(normalizedUsername).isPresent()) {
+            if (userDAO.getByUsername(normalizedUsername).isPresent()) {
                 throw new ServiceException("Username already exists: " + normalizedUsername);
             }
-            return adminDAO.createAdmin(new Admin(normalizedUsername, hash));
+            return userDAO.createUser(new User(normalizedUsername, hash, fullName.trim(), normalizedRole));
         } catch (DataAccessException ex) {
-            throw new ServiceException("Failed to register administrator: " + ex.getMessage(), ex);
+            throw new ServiceException("Failed to register user: " + ex.getMessage(), ex);
         }
     }
 
     /**
-     * Authenticates an administrator by username and plain-text password.
-     *
-     * @param username      admin username
-     * @param plainPassword plain-text password
-     * @return authenticated {@link Admin}, or {@link Optional#empty()} if credentials are invalid
+     * Authenticates a user by username and plain-text password and returns their {@link User} profile and role.
      */
-    public Optional<Admin> login(String username, String plainPassword) {
+    public Optional<User> login(String username, String plainPassword) {
         if (username == null || username.isBlank() || plainPassword == null || plainPassword.isEmpty()) {
             return Optional.empty();
         }
         try {
-            Optional<Admin> adminOpt = adminDAO.getByUsername(username.trim());
-            if (adminOpt.isEmpty()) {
+            Optional<User> userOpt = userDAO.getByUsername(username.trim());
+            if (userOpt.isEmpty()) {
                 return Optional.empty();
             }
-            Admin admin = adminOpt.get();
-            return verifyPassword(plainPassword, admin.getPasswordHash())
-                    ? Optional.of(admin)
+            User user = userOpt.get();
+            return verifyPassword(plainPassword, user.getPasswordHash())
+                    ? Optional.of(user)
                     : Optional.empty();
         } catch (DataAccessException ex) {
             throw new ServiceException("Authentication lookup failed: " + ex.getMessage(), ex);
         }
+    }
+
+    private static String normalizeRole(String role) {
+        if (role == null || role.isBlank()) {
+            throw new IllegalArgumentException("Role must not be blank");
+        }
+        String normalized = role.trim().toUpperCase(Locale.ROOT);
+        if (!User.ROLE_MASTER_ADMIN.equals(normalized) && !User.ROLE_TEACHER.equals(normalized)) {
+            throw new IllegalArgumentException("Unsupported role: " + role);
+        }
+        return normalized;
     }
 }

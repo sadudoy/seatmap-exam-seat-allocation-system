@@ -1,6 +1,7 @@
 package com.seatmap.service;
 
 import com.seatmap.dao.AllocationDAO;
+import com.seatmap.dao.ExamDAO;
 import com.seatmap.dao.RoomDAO;
 import com.seatmap.dao.StudentDAO;
 import com.seatmap.exception.DataAccessException;
@@ -28,6 +29,9 @@ import java.util.Set;
  */
 public class AllocationService {
 
+    public static final String STRATEGY_ANTI_CHEATING_MIX = "Anti-Cheating Mix";
+    public static final String STRATEGY_SEQUENTIAL = "Standard Sequential";
+
     private static final int MAX_BACKTRACK_STEPS = 200_000;
 
     /**
@@ -42,15 +46,96 @@ public class AllocationService {
     private final StudentDAO studentDAO;
     private final RoomDAO roomDAO;
     private final AllocationDAO allocationDAO;
+    private final ExamDAO examDAO;
 
     public AllocationService() {
-        this(new StudentDAO(), new RoomDAO(), new AllocationDAO());
+        this(new StudentDAO(), new RoomDAO(), new AllocationDAO(), new ExamDAO());
     }
 
     public AllocationService(StudentDAO studentDAO, RoomDAO roomDAO, AllocationDAO allocationDAO) {
+        this(studentDAO, roomDAO, allocationDAO, new ExamDAO());
+    }
+
+    public AllocationService(StudentDAO studentDAO, RoomDAO roomDAO,
+                             AllocationDAO allocationDAO, ExamDAO examDAO) {
         this.studentDAO = studentDAO;
         this.roomDAO = roomDAO;
         this.allocationDAO = allocationDAO;
+        this.examDAO = examDAO;
+    }
+
+    /**
+     * Executes granular seat allocation filtered by selected departments, semesters, and strategy,
+     * persisting all generated seats atomically for {@code examId}.
+     */
+    public AllocationResult runAllocation(long examId, List<String> selectedDepartments,
+                                          List<Integer> selectedSemesters, String strategy) {
+        if (examId <= 0) {
+            throw new IllegalArgumentException("Exam ID must be positive");
+        }
+        try {
+            Exam exam = examDAO.getById(examId)
+                    .orElseThrow(() -> new ServiceException("Exam not found with id: " + examId));
+            List<Student> eligibleStudents = studentDAO.getFilteredStudents(selectedDepartments, selectedSemesters);
+            List<Room> availableRooms = roomDAO.getAll();
+
+            AllocationResult result = STRATEGY_SEQUENTIAL.equalsIgnoreCase(
+                    strategy == null ? "" : strategy.trim())
+                    ? planSequentialAllocation(exam, eligibleStudents, availableRooms)
+                    : planAllocation(exam, eligibleStudents, availableRooms);
+
+            allocationDAO.replaceAllocationsForExam(exam.getId(), result.allocations());
+            return result;
+        } catch (DataAccessException ex) {
+            throw new ServiceException("Failed to execute granular allocation: " + ex.getMessage(), ex);
+        }
+    }
+
+    /**
+     * Distributes students sequentially row-by-row across rooms up to each room's capacity.
+     */
+    public AllocationResult planSequentialAllocation(Exam exam, List<Student> students, List<Room> rooms) {
+        if (exam == null) {
+            throw new IllegalArgumentException("Exam must not be null");
+        }
+        List<Student> uniqueStudents = deduplicateStudents(students);
+        if (uniqueStudents.isEmpty() || rooms == null || rooms.isEmpty()) {
+            return new AllocationResult(List.of(), uniqueStudents);
+        }
+
+        List<Room> orderedRooms = new ArrayList<>(rooms);
+        orderedRooms.sort(Comparator.comparing(
+                room -> room.getRoomNumber() == null ? "" : room.getRoomNumber(),
+                String.CASE_INSENSITIVE_ORDER));
+
+        List<Allocation> allocations = new ArrayList<>();
+        int studentIndex = 0;
+
+        for (Room room : orderedRooms) {
+            if (studentIndex >= uniqueStudents.size()) {
+                break;
+            }
+            if (room.getRows() <= 0 || room.getColumns() <= 0 || room.getCapacity() <= 0) {
+                continue;
+            }
+            int roomSeatLimit = Math.min(room.getCapacity(), room.getRows() * room.getColumns());
+            int placedInRoom = 0;
+
+            for (int r = 0; r < room.getRows() && placedInRoom < roomSeatLimit
+                    && studentIndex < uniqueStudents.size(); r++) {
+                for (int c = 0; c < room.getColumns() && placedInRoom < roomSeatLimit
+                        && studentIndex < uniqueStudents.size(); c++) {
+                    Student student = uniqueStudents.get(studentIndex++);
+                    allocations.add(new Allocation(exam.getId(), student.getId(), room.getId(), r, c));
+                    placedInRoom++;
+                }
+            }
+        }
+
+        List<Student> unallocated = studentIndex < uniqueStudents.size()
+                ? new ArrayList<>(uniqueStudents.subList(studentIndex, uniqueStudents.size()))
+                : List.of();
+        return new AllocationResult(allocations, unallocated);
     }
 
     /**

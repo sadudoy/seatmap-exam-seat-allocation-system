@@ -391,32 +391,6 @@
     -fx-background-radius: 8px;
 }
 
-.seat-tile {
-    -fx-pref-width: 112px;
-    -fx-pref-height: 76px;
-    -fx-background-radius: 8px;
-    -fx-border-radius: 8px;
-    -fx-border-width: 1.5px;
-    -fx-padding: 6px 8px;
-    -fx-alignment: CENTER_LEFT;
-    -fx-cursor: hand;
-    -fx-font-size: 11.5px;
-}
-
-.seat-tile-empty {
-    -fx-background-color: #F8FAFC;
-    -fx-border-color: #CBD5E1;
-    -fx-border-style: dashed;
-    -fx-text-fill: #94A3B8;
-    -fx-cursor: default;
-}
-
-.seat-tile-selected {
-    -fx-border-color: #0F172A !important;
-    -fx-border-width: 2.5px !important;
-    -fx-effect: dropshadow(gaussian, rgba(15, 23, 42, 0.22), 8, 0, 0, 2);
-}
-
 .legend-chip {
     -fx-background-radius: 6px;
     -fx-border-radius: 6px;
@@ -424,4 +398,66 @@
     -fx-padding: 4px 10px;
     -fx-font-size: 11.5px;
     -fx-font-weight: bold;
+}
+
+/* ---------- Seat Card VBox Nodes (Attendance & Seating) ---------- */
+.seat-card {
+    -fx-background-radius: 8px;
+    -fx-border-radius: 8px;
+    -fx-border-width: 1.5px;
+    -fx-cursor: hand;
+}
+
+.seat-card-empty {
+    -fx-background-color: #F8FAFC;
+    -fx-border-color: #CBD5E1;
+    -fx-border-style: dashed;
+    -fx-border-radius: 8px;
+    -fx-background-radius: 8px;
+    -fx-cursor: default;
+}
+
+.seat-card-selected {
+    -fx-border-color: #0F172A !important;
+    -fx-border-width: 2.5px !important;
+    -fx-effect: dropshadow(gaussian, rgba(15, 23, 42, 0.22), 8, 0, 0, 2);
+}
+
+.seat-present {
+    -fx-background-color: #DCFCE7;
+    -fx-border-color: #16A34A;
+    -fx-text-fill: #15803D;
+}
+
+.seat-absent {
+    -fx-background-color: #FEE2E2;
+    -fx-border-color: #DC2626;
+    -fx-text-fill: #B91C1C;
+}
+
+.seat-pending {
+    -fx-background-color: #FFFBEB;
+    -fx-border-color: #F59E0B;
+    -fx-text-fill: #B45309;
+}
+
+.filter-box {
+    -fx-background-color: #F8FAFC;
+    -fx-border-color: #E2E8F0;
+    -fx-border-radius: 8px;
+    -fx-background-radius: 8px;
+    -fx-padding: 10px 12px;
+}
+
+.btn-link {
+    -fx-background-color: transparent;
+    -fx-text-fill: #1D4ED8;
+    -fx-font-size: 11.5px;
+    -fx-font-weight: bold;
+    -fx-padding: 2px 6px;
+    -fx-cursor: hand;
+}
+
+.btn-link:hover {
+    -fx-underline: true;
 }

@@ -1,6 +1,6 @@
 package com.seatmap.util;
 
-import com.seatmap.model.Admin;
+import com.seatmap.model.User;
 import javafx.fxml.FXMLLoader;
 import javafx.scene.Parent;
 import javafx.scene.Scene;
@@ -11,7 +11,7 @@ import java.net.URL;
 import java.util.Objects;
 
 /**
- * Central single-window navigation and session manager for Seatmap.
+ * Central single-window navigation and RBAC session manager for Seatmap.
  */
 public final class SceneManager {
 
@@ -22,7 +22,7 @@ public final class SceneManager {
     private static final String STYLESHEET = "/com/seatmap/css/style.css";
 
     private static Stage primaryStage;
-    private static Admin currentAdmin;
+    private static User currentUser;
 
     private SceneManager() {
     }
@@ -35,23 +35,23 @@ public final class SceneManager {
         return primaryStage;
     }
 
-    public static Admin getCurrentAdmin() {
-        return currentAdmin;
+    public static User getCurrentUser() {
+        return currentUser;
     }
 
-    public static void setCurrentAdmin(Admin admin) {
-        currentAdmin = admin;
+    public static void setCurrentUser(User user) {
+        currentUser = user;
     }
 
     /**
      * Displays the login screen inside the maximized single primary stage.
      */
     public static void showLoginScreen() {
-        switchRoot("login.fxml", "Seatmap - Administrator Login");
+        switchRoot("login.fxml", "Seatmap - User Sign In");
     }
 
     /**
-     * Displays the dashboard workspace inside the maximized single primary stage.
+     * Displays the role-aware dashboard workspace inside the maximized single primary stage.
      */
     public static void showDashboardScreen() {
         switchRoot("dashboard.fxml", "Seatmap - Exam Seat Allocation System");

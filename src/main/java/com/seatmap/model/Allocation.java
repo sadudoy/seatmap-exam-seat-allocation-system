@@ -1,9 +1,13 @@
 package com.seatmap.model;
 
 /**
- * Represents a seat assignment linking a student and room for a specific exam.
+ * Represents a seat assignment linking a student, room, exam, and attendance status.
  */
 public class Allocation {
+
+    public static final String STATUS_PENDING = "PENDING";
+    public static final String STATUS_PRESENT = "PRESENT";
+    public static final String STATUS_ABSENT = "ABSENT";
 
     private long id;
     private long examId;
@@ -11,25 +15,28 @@ public class Allocation {
     private long roomId;
     private int seatRow;
     private int seatCol;
+    private String status = STATUS_PENDING;
 
     public Allocation() {
     }
 
     public Allocation(long examId, long studentId, long roomId, int seatRow, int seatCol) {
-        this.examId = examId;
-        this.studentId = studentId;
-        this.roomId = roomId;
-        this.seatRow = seatRow;
-        this.seatCol = seatCol;
+        this(0L, examId, studentId, roomId, seatRow, seatCol, STATUS_PENDING);
     }
 
     public Allocation(long id, long examId, long studentId, long roomId, int seatRow, int seatCol) {
+        this(id, examId, studentId, roomId, seatRow, seatCol, STATUS_PENDING);
+    }
+
+    public Allocation(long id, long examId, long studentId, long roomId,
+                      int seatRow, int seatCol, String status) {
         this.id = id;
         this.examId = examId;
         this.studentId = studentId;
         this.roomId = roomId;
         this.seatRow = seatRow;
         this.seatCol = seatCol;
+        this.status = (status == null || status.isBlank()) ? STATUS_PENDING : status;
     }
 
     public long getId() {
@@ -78,5 +85,13 @@ public class Allocation {
 
     public void setSeatCol(int seatCol) {
         this.seatCol = seatCol;
+    }
+
+    public String getStatus() {
+        return status;
+    }
+
+    public void setStatus(String status) {
+        this.status = (status == null || status.isBlank()) ? STATUS_PENDING : status;
     }
 }

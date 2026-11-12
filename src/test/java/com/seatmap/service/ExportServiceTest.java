@@ -48,4 +48,29 @@ class ExportServiceTest {
         String header = new String(bytes, 0, Math.min(5, bytes.length), StandardCharsets.US_ASCII);
         assertTrue(header.startsWith("%PDF-"), "Output should start with PDF magic header");
     }
+
+    @Test
+    @DisplayName("generates a valid Teacher Attendance Sheet PDF with checkboxes")
+    void generatesAttendanceSheetPdf(@TempDir Path tempDir) throws IOException {
+        Exam exam = new Exam(10L, "Computer Networks", LocalDate.of(2026, 12, 5), LocalTime.of(10, 0));
+        Room room = new Room(20L, "B-402", 4, 2, 2);
+
+        Student s1 = new Student(1L, "CSE-01", "Alice", "CSE", "5");
+        Student s2 = new Student(2L, "EEE-02", "Bob", "EEE", "5");
+        Map<Long, Student> studentsById = Map.of(1L, s1, 2L, s2);
+
+        List<Allocation> allocations = List.of(
+                new Allocation(1L, 10L, 1L, 20L, 0, 0, Allocation.STATUS_PRESENT),
+                new Allocation(2L, 10L, 2L, 20L, 0, 1, Allocation.STATUS_ABSENT)
+        );
+
+        Path outputPdf = tempDir.resolve("attendance-sheet.pdf");
+        exportService.exportAttendanceSheet(exam, room, allocations, studentsById, outputPdf);
+
+        assertTrue(Files.exists(outputPdf));
+        byte[] bytes = Files.readAllBytes(outputPdf);
+        assertTrue(bytes.length > 500, "Generated attendance PDF should be non-trivial in size");
+        String header = new String(bytes, 0, Math.min(5, bytes.length), StandardCharsets.US_ASCII);
+        assertTrue(header.startsWith("%PDF-"), "Output should start with PDF magic header");
+    }
 }

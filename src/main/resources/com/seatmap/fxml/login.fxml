@@ -52,8 +52,8 @@
 
         <VBox prefWidth="360" maxWidth="380" spacing="18" alignment="CENTER_LEFT">
             <VBox spacing="6">
-                <Label text="Administrator Sign In" styleClass="login-form-heading"/>
-                <Label text="Enter your administrator credentials to continue." styleClass="page-subtitle"/>
+                <Label text="Sign In" styleClass="login-form-heading"/>
+                <Label text="Enter your Seatmap account credentials to continue." styleClass="page-subtitle"/>
             </VBox>
 
             <Label fx:id="errorLabel" styleClass="error-banner" visible="false" managed="false" wrapText="true" maxWidth="Infinity"/>

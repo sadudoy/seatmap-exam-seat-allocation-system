@@ -30,16 +30,22 @@
             </ImageView>
             <Label text="Exam Operations" styleClass="sidebar-caption"/>
 
-            <Label fx:id="adminBadgeLabel" text="Admin" styleClass="sidebar-user" maxWidth="Infinity"/>
+            <Label fx:id="userBadgeLabel" text="User" styleClass="sidebar-user" maxWidth="Infinity" wrapText="true"/>
 
-            <Region prefHeight="10"/>
+            <Region prefHeight="8"/>
 
+            <!-- Master Admin Navigation -->
             <Button fx:id="navOverviewBtn" text="Overview" onAction="#showOverview" styleClass="nav-button"/>
             <Button fx:id="navStudentsBtn" text="Students" onAction="#showStudents" styleClass="nav-button"/>
             <Button fx:id="navRoomsBtn" text="Rooms" onAction="#showRooms" styleClass="nav-button"/>
             <Button fx:id="navExamsBtn" text="Exams" onAction="#showExams" styleClass="nav-button"/>
             <Button fx:id="navAllocationBtn" text="Allocation" onAction="#showAllocation" styleClass="nav-button"/>
             <Button fx:id="navSeatingBtn" text="Seating Chart" onAction="#showSeatingChart" styleClass="nav-button"/>
+            <Button fx:id="navUserManagementBtn" text="User Management" onAction="#showUserManagement" styleClass="nav-button"/>
+            <Button fx:id="navAssignmentsBtn" text="Assignments" onAction="#showAssignments" styleClass="nav-button"/>
+
+            <!-- Teacher Navigation -->
+            <Button fx:id="navMyInvigilationsBtn" text="My Invigilations" onAction="#showMyInvigilations" styleClass="nav-button"/>
 
             <Region VBox.vgrow="ALWAYS"/>
             <Separator style="-fx-opacity: 0.2;"/>
