@@ -57,6 +57,7 @@
 
         <HBox spacing="14" alignment="CENTER_LEFT">
             <Button fx:id="generateButton" text="Generate Allocations" onAction="#handleGenerateAllocations" styleClass="btn-hero"/>
+            <Button fx:id="clearAllocationsButton" text="Clear All Allocations for Exam" onAction="#handleClearAllocations" styleClass="btn-danger"/>
             <VBox spacing="2">
                 <Label fx:id="matchingCountLabel" text="Matching students: 0" styleClass="field-label"/>
                 <Label text="Unchecked groups match all values in that group; check specific items to narrow the cohort." styleClass="muted-label"/>

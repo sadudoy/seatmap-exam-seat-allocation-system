@@ -6,13 +6,19 @@ import com.seatmap.exception.DataAccessException;
 import com.seatmap.exception.ServiceException;
 import com.seatmap.model.Exam;
 import com.seatmap.model.Student;
+import com.seatmap.model.User;
 import com.seatmap.service.AllocationService;
 import com.seatmap.service.AllocationService.AllocationResult;
 import com.seatmap.util.AlertHelper;
+import com.seatmap.util.SceneManager;
 import javafx.beans.property.SimpleStringProperty;
 import javafx.collections.FXCollections;
 import javafx.fxml.FXML;
+import javafx.scene.control.Alert;
+import javafx.scene.control.Button;
+import javafx.scene.control.ButtonType;
 import javafx.scene.control.CheckBox;
+import javafx.scene.control.ChoiceDialog;
 import javafx.scene.control.ComboBox;
 import javafx.scene.control.Label;
 import javafx.scene.control.TableColumn;
@@ -23,6 +29,8 @@ import javafx.util.StringConverter;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
+import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
 import java.util.TreeSet;
 import java.util.function.Consumer;
@@ -47,6 +55,9 @@ public class AllocationController {
 
     @FXML
     private Label matchingCountLabel;
+
+    @FXML
+    private Button clearAllocationsButton;
 
     @FXML
     private Label statusLabel;
@@ -87,6 +98,13 @@ public class AllocationController {
         configureStrategyComboBox();
         configureUnallocatedTable();
         loadOptions();
+
+        User currentUser = SceneManager.getCurrentUser();
+        boolean isMasterAdmin = currentUser != null && currentUser.isMasterAdmin();
+        if (clearAllocationsButton != null) {
+            clearAllocationsButton.setVisible(isMasterAdmin);
+            clearAllocationsButton.setManaged(isMasterAdmin);
+        }
     }
 
     @FXML
@@ -128,6 +146,63 @@ public class AllocationController {
             }
         } catch (ServiceException | DataAccessException | IllegalArgumentException ex) {
             AlertHelper.showError("Allocation Error", "Failed to generate allocations:\n" + ex.getMessage());
+        }
+    }
+
+    @FXML
+    private void handleClearAllocations() {
+        User currentUser = SceneManager.getCurrentUser();
+        if (currentUser != null && !currentUser.isMasterAdmin()) {
+            AlertHelper.showError("Access Denied", "Only Master Administrators can clear allocations.");
+            return;
+        }
+
+        List<Exam> exams = examDAO.getAll();
+        if (exams.isEmpty()) {
+            AlertHelper.showWarning("No Exams Available", "No exams are currently scheduled.");
+            return;
+        }
+
+        Map<String, Exam> examChoices = new java.util.LinkedHashMap<>();
+        for (Exam exam : exams) {
+            String label = exam.getSubject() + " (" + exam.getExamDate() + " " + exam.getStartTime() + ")";
+            examChoices.put(label, exam);
+        }
+
+        String defaultLabel = examComboBox.getValue() != null
+                ? examComboBox.getValue().getSubject() + " (" + examComboBox.getValue().getExamDate() + " " + examComboBox.getValue().getStartTime() + ")"
+                : examChoices.keySet().iterator().next();
+
+        ChoiceDialog<String> dialog = new ChoiceDialog<>(defaultLabel, examChoices.keySet());
+        dialog.setTitle("Clear All Allocations");
+        dialog.setHeaderText("Select the examination whose allocations should be cleared:");
+        dialog.setContentText("Examination:");
+
+        Optional<String> choice = dialog.showAndWait();
+        if (choice.isEmpty()) {
+            return;
+        }
+
+        Exam targetExam = examChoices.get(choice.get());
+        Alert confirmAlert = new Alert(Alert.AlertType.CONFIRMATION);
+        confirmAlert.setTitle("Confirm Deletion");
+        confirmAlert.setHeaderText("WARNING: This will delete ALL seat assignments for this exam. Are you sure?");
+        confirmAlert.setContentText("Examination: " + targetExam.getSubject() + " (" + targetExam.getExamDate() + ")\n"
+                + "All allocated desks will be emptied immediately. This action cannot be undone.");
+
+        Optional<ButtonType> confirmResult = confirmAlert.showAndWait();
+        if (confirmResult.isPresent() && confirmResult.get() == ButtonType.OK) {
+            try {
+                int deletedCount = allocationService.deleteAllocationsByExam(targetExam.getId());
+                unallocatedTable.getItems().clear();
+                summaryCountLabel.setText("Cleared " + deletedCount + " allocation(s) for " + targetExam.getSubject());
+                showStatusBanner("Cleared all " + deletedCount + " seat allocations for " + targetExam.getSubject() + ".", true);
+                AlertHelper.showInfo("Allocations Cleared",
+                        "Successfully cleared " + deletedCount + " seat allocation(s) for \""
+                                + targetExam.getSubject() + "\".");
+            } catch (ServiceException | DataAccessException ex) {
+                AlertHelper.showError("Deletion Failed", "Failed to clear allocations:\n" + ex.getMessage());
+            }
         }
     }
 

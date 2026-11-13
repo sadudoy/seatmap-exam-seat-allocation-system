@@ -92,6 +92,27 @@ public class AllocationService {
     }
 
     /**
+     * Clears all seat allocations for the given examination.
+     *
+     * @param examId target exam id
+     * @return count of deleted allocation records
+     */
+    public int deleteAllocationsByExam(long examId) {
+        if (examId <= 0) {
+            throw new IllegalArgumentException("Exam ID must be positive");
+        }
+        try {
+            return allocationDAO.deleteAllocationsByExam(examId);
+        } catch (DataAccessException ex) {
+            throw new ServiceException("Failed to clear allocations for exam: " + ex.getMessage(), ex);
+        }
+    }
+
+    public int deleteAllocationsByExam(int examId) {
+        return deleteAllocationsByExam((long) examId);
+    }
+
+    /**
      * Distributes students sequentially row-by-row across rooms up to each room's capacity.
      */
     public AllocationResult planSequentialAllocation(Exam exam, List<Student> students, List<Room> rooms) {

@@ -11,11 +11,16 @@ import com.seatmap.util.AlertHelper;
 import com.seatmap.util.SceneManager;
 import javafx.beans.property.SimpleStringProperty;
 import javafx.collections.FXCollections;
+import javafx.collections.ObservableList;
 import javafx.fxml.FXML;
 import javafx.fxml.FXMLLoader;
 import javafx.scene.Parent;
+import javafx.scene.chart.BarChart;
+import javafx.scene.chart.PieChart;
+import javafx.scene.chart.XYChart;
 import javafx.scene.control.Button;
 import javafx.scene.control.Label;
+import javafx.scene.control.ScrollPane;
 import javafx.scene.control.TableColumn;
 import javafx.scene.control.TableView;
 import javafx.scene.layout.StackPane;
@@ -23,6 +28,7 @@ import javafx.scene.layout.VBox;
 
 import java.io.IOException;
 import java.util.List;
+import java.util.Map;
 
 /**
  * Main role-aware workspace shell managing sidebar navigation, RBAC visibility, and logout.
@@ -76,6 +82,12 @@ public class DashboardController {
 
     @FXML
     private Label totalCapacityLabel;
+
+    @FXML
+    private PieChart departmentPieChart;
+
+    @FXML
+    private BarChart<String, Number> roomUtilizationChart;
 
     @FXML
     private TableView<Exam> recentExamsTable;
@@ -197,6 +209,37 @@ public class DashboardController {
             totalExamsLabel.setText(String.valueOf(exams.size()));
             totalCapacityLabel.setText(String.valueOf(totalCapacity));
             recentExamsTable.setItems(FXCollections.observableArrayList(exams));
+
+            // Populate Students by Department PieChart
+            Map<String, Integer> deptCounts = studentDAO.getDepartmentCounts();
+            ObservableList<PieChart.Data> pieData = FXCollections.observableArrayList();
+            for (Map.Entry<String, Integer> entry : deptCounts.entrySet()) {
+                pieData.add(new PieChart.Data(entry.getKey() + " (" + entry.getValue() + ")", entry.getValue()));
+            }
+            if (departmentPieChart != null) {
+                departmentPieChart.setData(pieData);
+            }
+
+            // Populate Room Utilization BarChart (Seats Allocated vs Total Capacity)
+            Map<String, Integer[]> roomStats = roomDAO.getRoomCapacityStats();
+            XYChart.Series<String, Number> allocatedSeries = new XYChart.Series<>();
+            allocatedSeries.setName("Seats Allocated");
+
+            XYChart.Series<String, Number> capacitySeries = new XYChart.Series<>();
+            capacitySeries.setName("Total Capacity");
+
+            for (Map.Entry<String, Integer[]> entry : roomStats.entrySet()) {
+                String roomName = entry.getKey();
+                Integer[] stats = entry.getValue();
+                int capacity = stats[RoomDAO.INDEX_TOTAL_CAPACITY];
+                int allocated = stats[RoomDAO.INDEX_ALLOCATED_SEATS];
+                allocatedSeries.getData().add(new XYChart.Data<>(roomName, allocated));
+                capacitySeries.getData().add(new XYChart.Data<>(roomName, capacity));
+            }
+
+            if (roomUtilizationChart != null) {
+                roomUtilizationChart.getData().setAll(List.of(allocatedSeries, capacitySeries));
+            }
         } catch (DataAccessException ex) {
             AlertHelper.showError("Database Error", "Failed to load dashboard statistics:\n" + ex.getMessage());
         }

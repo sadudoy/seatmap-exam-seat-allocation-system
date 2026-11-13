@@ -15,10 +15,18 @@
 ## Features
 
 - **Role-Based Access Control (RBAC):**
-  - `MASTER_ADMIN`: Full access to Overview, Students, Rooms, Exams, Granular Allocation, Seating Charts, User Management (create/delete Teachers), Invigilator Assignments, and Attendance marking.
-  - `TEACHER`: Access to Overview, Students, Rooms, Exams, Granular Allocation, Seating Charts, **My Invigilations**, and interactive Attendance marking/PDF export (User Management and Assignments are hidden).
+  - `MASTER_ADMIN`: Full access to Overview, Students, Rooms, Exams, Granular Allocation, Bulk Allocation Clearing, Seating Charts, User Management (create/delete Teachers), Invigilator Assignments, and Attendance marking.
+  - `TEACHER`: Access to Overview, Students, Rooms, Exams, Granular Allocation, Seating Charts, **My Invigilations**, and interactive Attendance marking/PDF export (User Management, Invigilator Assignments, and Bulk Allocation Clearing are hidden and inaccessible).
+- **Dashboard Graphical Analytics:** Dynamic visual analytics on the Operations Dashboard featuring:
+  - **Students by Department (`PieChart`):** Proportional distribution of student enrollments by major.
+  - **Room Utilization (`BarChart`):** Side-by-side capacity comparison of Seats Allocated vs Total Capacity per room.
+- **Bulk Allocation Management (Master Admin Only):**
+  - Secure "Clear All Allocations for Exam" capability in the Granular Allocation engine with multi-exam selector and confirmation warnings.
+  - Enforced via role verification both at the UI layer (hidden/unmanaged for Teachers) and backend service boundaries.
+- **Interactive Seating Charts & Single-Seat Deletion:**
+  - Dedicated VBox seat cards (`120x85` min bounds) with separate Seat, Roll Number (`#0f172a`), and Attendance Status labels (`PRESENT` = Green, `ABSENT` = Red, `PENDING` = Amber).
+  - Right-click `ContextMenu` ("Remove Student") on occupied seats allowing invigilators and administrators to vacate specific desks with instant grid re-rendering.
 - **Granular Allocation & Anti-Cheating Engine:** Multi-department and multi-semester student cohort filtering (`StudentDAO.getFilteredStudents`) with selectable seating strategies (**Anti-Cheating Mix** using bounded backtracking so no orthogonally adjacent desks share a department, or **Standard Sequential**).
-- **Interactive Non-Overlapping Seat Grids:** Dedicated VBox seat cards (`120x85` min bounds) with separate Seat, Roll Number (`#0f172a`), and Attendance Status labels (`PRESENT` = Green, `ABSENT` = Red, `PENDING` = Amber).
 - **Bulk CSV Import & PDF Reporting:** Import student rosters via CSV and export formatted PDF Room Seating Charts and Teacher Attendance Sheets with signature checkboxes.
 
 ## How to Run

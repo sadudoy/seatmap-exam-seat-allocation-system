@@ -37,8 +37,16 @@ Seatmap follows a layered desktop architecture separating presentation (JavaFX F
 - `App` initializes the schema via `DatabaseConnector.initializeDatabase()`, runs `DataSeeder.seedIfEmpty()`, sets the taskbar icon (`/com/images/icon.png`), and launches the single maximized `Stage` via `SceneManager`.
 - `SceneManager` maintains a single `Stage` and reuses a single `Scene` instance (`scene.setRoot(...)`) across Login, Dashboard, and Logout.
 - After `AuthService.login(username, password)` succeeds, `DashboardController` inspects `SceneManager.getCurrentUser().getRole()`:
-  - **`MASTER_ADMIN`**: Full sidebar access (`Overview`, `Students`, `Rooms`, `Exams`, `Allocation`, `Seating Chart`, `User Management`, `Assignments`, `Logout`).
-  - **`TEACHER`**: Operational sidebar access (`Overview`, `Students`, `Rooms`, `Exams`, `Allocation`, `Seating Chart`, `My Invigilations`, `Logout`) with `User Management` and `Assignments` hidden (`visible=false`, `managed=false`).
+  - **`MASTER_ADMIN`**: Full sidebar access (`Overview`, `Students`, `Rooms`, `Exams`, `Allocation`, `Seating Chart`, `User Management`, `Assignments`, `Logout`). In the Allocation screen, the **Clear All Allocations for Exam** action button is visible and managed.
+  - **`TEACHER`**: Operational sidebar access (`Overview`, `Students`, `Rooms`, `Exams`, `Allocation`, `Seating Chart`, `My Invigilations`, `Logout`) with `User Management` and `Assignments` hidden (`visible=false`, `managed=false`). In the Allocation screen, the bulk clear button is completely hidden and unmanaged.
+
+## Dashboard Visual Analytics & Analytical Queries
+- **Department Distribution (`PieChart`):** `StudentDAO.getDepartmentCounts()` runs an aggregated grouping query (`SELECT department, COUNT(*) ... GROUP BY department ORDER BY department`) and renders slice percentages and counts dynamically in `DashboardController.refreshOverviewStats()`.
+- **Room Utilization (`BarChart`):** `RoomDAO.getRoomCapacityStats()` executes a left join aggregation between `rooms` and `allocations` (`SELECT r.room_number, r.capacity, COUNT(a.id) ... GROUP BY r.id, r.room_number, r.capacity ORDER BY r.room_number`), returning a `Map<String, Integer[]>` where index 0 is Total Capacity and index 1 is Allocated Seats. Rendered as a multi-series bar chart for immediate visual feedback.
+
+## Allocation Lifecycle Management (Single & Bulk Deletion)
+- **Single-Seat Removal:** Right-clicking any occupied seat card in the Visual Seating Chart (`SeatingController`) or Attendance Grid (`AttendanceController`) presents a `ContextMenu` with a "Remove Student" option. After confirmation, `AllocationDAO.deleteAllocation(allocationId)` removes the assignment and re-renders the room floor grid.
+- **Bulk Allocation Clearing:** `AllocationDAO.deleteAllocationsByExam(examId)` and `AllocationService.deleteAllocationsByExam(examId)` perform an atomic delete of all allocations assigned to a target exam. Protected by `MASTER_ADMIN` RBAC and triggered via an interactive `ChoiceDialog` with severe confirmation safeguards.
 
 ## Granular Anti-Cheating Seat Allocation Engine
 - `AllocationController` lets users filter cohorts by multiple departments and multiple numeric semesters (`StudentDAO.getFilteredStudents`) and choose a strategy (`Anti-Cheating Mix` or `Standard Sequential`).

@@ -52,6 +52,35 @@ public class AllocationDAO {
         return JdbcSupport.executeUpdate(sql, ps -> ps.setLong(1, examId));
     }
 
+    /**
+     * Deletes all allocations for the specified exam id.
+     *
+     * @param examId target exam id
+     * @return count of deleted allocation records
+     */
+    public int deleteAllocationsByExam(long examId) {
+        return clearAllocationsForExam(examId);
+    }
+
+    public int deleteAllocationsByExam(int examId) {
+        return deleteAllocationsByExam((long) examId);
+    }
+
+    /**
+     * Deletes a single allocation record by its primary key.
+     *
+     * @param allocationId target allocation id
+     * @return {@code true} if a record was deleted, {@code false} otherwise
+     */
+    public boolean deleteAllocation(long allocationId) {
+        String sql = "DELETE FROM allocations WHERE id = ?";
+        return JdbcSupport.executeUpdate(sql, ps -> ps.setLong(1, allocationId)) > 0;
+    }
+
+    public boolean deleteAllocation(int allocationId) {
+        return deleteAllocation((long) allocationId);
+    }
+
     public Allocation saveAllocation(Allocation allocation) {
         String status = normalizeStatus(allocation.getStatus());
         String sql = """

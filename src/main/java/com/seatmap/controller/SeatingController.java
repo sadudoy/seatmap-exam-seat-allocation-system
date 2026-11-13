@@ -18,9 +18,14 @@ import javafx.fxml.FXML;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
 import javafx.scene.Cursor;
+import javafx.scene.control.Alert;
 import javafx.scene.control.Button;
+import javafx.scene.control.ButtonType;
 import javafx.scene.control.ComboBox;
+import javafx.scene.control.ContextMenu;
 import javafx.scene.control.Label;
+import javafx.scene.control.MenuItem;
+import javafx.scene.input.MouseButton;
 import javafx.scene.layout.FlowPane;
 import javafx.scene.layout.GridPane;
 import javafx.scene.layout.VBox;
@@ -33,6 +38,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Optional;
 
 /**
  * Controller for {@code seating.fxml} rendering non-overlapping VBox room seat cards
@@ -316,7 +322,11 @@ public class SeatingController {
             Label emptyLabel = new Label("Empty");
             emptyLabel.setStyle("-fx-font-size: 11px; -fx-text-fill: #94A3B8;");
             card.getChildren().addAll(seatLabel, emptyLabel);
-            card.setOnMouseClicked(e -> selectEmptySeat(card, seatCode));
+            card.setOnMouseClicked(e -> {
+                if (e.getButton() == MouseButton.PRIMARY) {
+                    selectEmptySeat(card, seatCode);
+                }
+            });
             return card;
         }
 
@@ -334,8 +344,44 @@ public class SeatingController {
         card.setStyle(String.format("-fx-background-color: %s; -fx-border-color: %s;",
                 style.bgHex(), style.borderHex()));
         card.getChildren().addAll(seatLabel, rollLabel, deptLabel);
-        card.setOnMouseClicked(e -> selectOccupiedSeat(card, seatCode, allocation, student));
+
+        ContextMenu contextMenu = new ContextMenu();
+        MenuItem removeStudentItem = new MenuItem("Remove Student");
+        removeStudentItem.setOnAction(e -> handleRemoveStudent(allocation, student, seatCode));
+        contextMenu.getItems().add(removeStudentItem);
+        card.setOnContextMenuRequested(e -> contextMenu.show(card, e.getScreenX(), e.getScreenY()));
+
+        card.setOnMouseClicked(e -> {
+            if (e.getButton() == MouseButton.PRIMARY) {
+                selectOccupiedSeat(card, seatCode, allocation, student);
+            }
+        });
         return card;
+    }
+
+    private void handleRemoveStudent(Allocation allocation, Student student, String seatCode) {
+        Alert confirmAlert = new Alert(Alert.AlertType.CONFIRMATION);
+        confirmAlert.setTitle("Remove Student");
+        confirmAlert.setHeaderText("Remove " + student.getName() + " (" + student.getRollNumber() + ") from seat " + seatCode + "?");
+        confirmAlert.setContentText("This will vacate seat " + seatCode + " for this examination. Are you sure?");
+
+        Optional<ButtonType> result = confirmAlert.showAndWait();
+        if (result.isPresent() && result.get() == ButtonType.OK) {
+            try {
+                if (allocationDAO.deleteAllocation(allocation.getId())) {
+                    if (selectedAllocation != null && selectedAllocation.getId() == allocation.getId()) {
+                        clearSeatInspector();
+                    }
+                    renderGrid();
+                    AlertHelper.showInfo("Student Removed",
+                            "Removed " + student.getName() + " (" + student.getRollNumber() + ") from seat " + seatCode + ".");
+                } else {
+                    AlertHelper.showWarning("Delete Failed", "The seat allocation could not be removed.");
+                }
+            } catch (DataAccessException ex) {
+                AlertHelper.showError("Database Error", "Failed to remove student from seat:\n" + ex.getMessage());
+            }
+        }
     }
 
     private void renderLegend(Map<String, DeptStyle> deptStyles) {

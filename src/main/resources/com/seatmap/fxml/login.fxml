@@ -71,7 +71,7 @@
             <Region prefHeight="4"/>
 
             <Button fx:id="loginButton" text="Sign In" onAction="#handleLogin"
-                    styleClass="btn-primary login-submit-btn" maxWidth="Infinity" defaultButton="true"/>
+                    styleClass="login-submit-btn" maxWidth="Infinity" defaultButton="true"/>
         </VBox>
     </VBox>
 </HBox>

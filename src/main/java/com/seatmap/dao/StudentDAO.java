@@ -11,8 +11,10 @@ import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Statement;
 import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
+import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 
@@ -186,6 +188,34 @@ public class StudentDAO {
             }
         } catch (SQLException ex) {
             throw new DataAccessException("Filtered student query failed: " + ex.getMessage(), ex.getSQLState(), ex);
+        }
+    }
+
+    /**
+     * Aggregates students by department for analytics visualization.
+     *
+     * @return map of department name to student count, sorted alphabetically
+     */
+    public Map<String, Integer> getDepartmentCounts() {
+        String sql = """
+                SELECT department, COUNT(*) AS dept_count
+                FROM students
+                WHERE department IS NOT NULL AND TRIM(department) <> ''
+                GROUP BY department
+                ORDER BY department
+                """;
+        Map<String, Integer> counts = new LinkedHashMap<>();
+        try (Connection conn = DatabaseConnector.getConnection();
+             PreparedStatement ps = conn.prepareStatement(sql);
+             ResultSet rs = ps.executeQuery()) {
+            while (rs.next()) {
+                String dept = rs.getString("department");
+                int count = rs.getInt("dept_count");
+                counts.put(dept != null ? dept.trim() : "Unknown", count);
+            }
+            return counts;
+        } catch (SQLException ex) {
+            throw new DataAccessException("Failed to fetch department counts: " + ex.getMessage(), ex.getSQLState(), ex);
         }
     }
 

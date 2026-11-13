@@ -15,7 +15,12 @@ import javafx.fxml.FXML;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
 import javafx.scene.Cursor;
+import javafx.scene.control.Alert;
+import javafx.scene.control.ButtonType;
+import javafx.scene.control.ContextMenu;
 import javafx.scene.control.Label;
+import javafx.scene.control.MenuItem;
+import javafx.scene.input.MouseButton;
 import javafx.scene.layout.GridPane;
 import javafx.scene.layout.VBox;
 import javafx.stage.FileChooser;
@@ -24,6 +29,7 @@ import java.io.File;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 
 /**
  * Controller for {@code attendance.fxml} rendering non-overlapping VBox seat cards
@@ -192,8 +198,41 @@ public class AttendanceController {
                 + resolveStatusTextColor(status) + ";");
 
         seatCard.getChildren().addAll(seatLabel, rollLabel, statusLabel);
-        seatCard.setOnMouseClicked(e -> handleSeatClick(seatCode, allocation, student));
+
+        ContextMenu contextMenu = new ContextMenu();
+        MenuItem removeStudentItem = new MenuItem("Remove Student");
+        removeStudentItem.setOnAction(e -> handleRemoveStudent(allocation, student, seatCode));
+        contextMenu.getItems().add(removeStudentItem);
+        seatCard.setOnContextMenuRequested(e -> contextMenu.show(seatCard, e.getScreenX(), e.getScreenY()));
+
+        seatCard.setOnMouseClicked(e -> {
+            if (e.getButton() == MouseButton.PRIMARY) {
+                handleSeatClick(seatCode, allocation, student);
+            }
+        });
         return seatCard;
+    }
+
+    private void handleRemoveStudent(Allocation allocation, Student student, String seatCode) {
+        Alert confirmAlert = new Alert(Alert.AlertType.CONFIRMATION);
+        confirmAlert.setTitle("Remove Student");
+        confirmAlert.setHeaderText("Remove " + student.getName() + " (" + student.getRollNumber() + ") from seat " + seatCode + "?");
+        confirmAlert.setContentText("This will vacate seat " + seatCode + " for this examination. Are you sure?");
+
+        Optional<ButtonType> result = confirmAlert.showAndWait();
+        if (result.isPresent() && result.get() == ButtonType.OK) {
+            try {
+                if (allocationDAO.deleteAllocation(allocation.getId())) {
+                    renderAttendanceGrid();
+                    AlertHelper.showInfo("Student Removed",
+                            "Removed " + student.getName() + " (" + student.getRollNumber() + ") from seat " + seatCode + ".");
+                } else {
+                    AlertHelper.showWarning("Delete Failed", "The seat allocation could not be removed.");
+                }
+            } catch (DataAccessException ex) {
+                AlertHelper.showError("Database Error", "Failed to remove student from seat:\n" + ex.getMessage());
+            }
+        }
     }
 
     private void handleSeatClick(String seatCode, Allocation allocation, Student student) {

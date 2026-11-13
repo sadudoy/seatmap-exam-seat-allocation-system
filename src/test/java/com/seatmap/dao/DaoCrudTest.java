@@ -118,4 +118,73 @@ class DaoCrudTest {
             }
         }
     }
+
+    @Test
+    @DisplayName("aggregates department counts, room capacity stats, and tests single and bulk allocation deletion")
+    void testsAnalyticsAndSingleAndBulkAllocationDeletion() {
+        // 1. Department Analytics
+        java.util.Map<String, Integer> deptCounts = studentDAO.getDepartmentCounts();
+        org.junit.jupiter.api.Assertions.assertNotNull(deptCounts);
+        org.junit.jupiter.api.Assertions.assertFalse(deptCounts.isEmpty(), "Department counts should contain seeded departments");
+        org.junit.jupiter.api.Assertions.assertTrue(deptCounts.containsKey("CSE") || deptCounts.values().stream().anyMatch(v -> v > 0));
+
+        // 2. Room Capacity Analytics
+        java.util.Map<String, Integer[]> roomStats = roomDAO.getRoomCapacityStats();
+        org.junit.jupiter.api.Assertions.assertNotNull(roomStats);
+        org.junit.jupiter.api.Assertions.assertFalse(roomStats.isEmpty(), "Room capacity stats should contain seeded rooms");
+        for (java.util.Map.Entry<String, Integer[]> entry : roomStats.entrySet()) {
+            Integer[] stats = entry.getValue();
+            org.junit.jupiter.api.Assertions.assertEquals(2, stats.length);
+            org.junit.jupiter.api.Assertions.assertTrue(stats[RoomDAO.INDEX_TOTAL_CAPACITY] > 0, "Capacity must be positive");
+            org.junit.jupiter.api.Assertions.assertTrue(stats[RoomDAO.INDEX_ALLOCATED_SEATS] >= 0, "Allocated seats must be non-negative");
+        }
+
+        // 3. Single and Bulk Deletion
+        Student tempStudent1 = null;
+        Student tempStudent2 = null;
+        Room tempRoom = null;
+        Exam tempExam = null;
+
+        try {
+            tempStudent1 = studentDAO.add(new Student("DEL-001", "Del Student 1", "CSE", "1"));
+            tempStudent2 = studentDAO.add(new Student("DEL-002", "Del Student 2", "EEE", "1"));
+            tempRoom = roomDAO.add(new Room("DEL-R101", 10, 2, 5));
+            tempExam = examDAO.add(new Exam("Deletion Test Exam", LocalDate.of(2026, 12, 30), LocalTime.of(9, 0)));
+
+            Allocation a1 = allocationDAO.saveAllocation(
+                    new Allocation(tempExam.getId(), tempStudent1.getId(), tempRoom.getId(), 0, 0));
+            Allocation a2 = allocationDAO.saveAllocation(
+                    new Allocation(tempExam.getId(), tempStudent2.getId(), tempRoom.getId(), 0, 1));
+
+            assertEquals(2, allocationDAO.getByExamId(tempExam.getId()).size());
+
+            // Test Single Delete
+            assertTrue(allocationDAO.deleteAllocation((int) a1.getId()));
+            assertEquals(1, allocationDAO.getByExamId(tempExam.getId()).size());
+            assertEquals(a2.getId(), allocationDAO.getByExamId(tempExam.getId()).get(0).getId());
+
+            // Add back an allocation and test Bulk Delete via AllocationService and AllocationDAO
+            allocationDAO.saveAllocation(
+                    new Allocation(tempExam.getId(), tempStudent1.getId(), tempRoom.getId(), 0, 0));
+            assertEquals(2, allocationDAO.getByExamId(tempExam.getId()).size());
+
+            com.seatmap.service.AllocationService allocationService = new com.seatmap.service.AllocationService();
+            int deleted = allocationService.deleteAllocationsByExam((int) tempExam.getId());
+            assertEquals(2, deleted);
+            assertTrue(allocationDAO.getByExamId(tempExam.getId()).isEmpty());
+        } finally {
+            if (tempExam != null && tempExam.getId() > 0) {
+                examDAO.delete(tempExam.getId());
+            }
+            if (tempRoom != null && tempRoom.getId() > 0) {
+                roomDAO.delete(tempRoom.getId());
+            }
+            if (tempStudent1 != null && tempStudent1.getId() > 0) {
+                studentDAO.delete(tempStudent1.getId());
+            }
+            if (tempStudent2 != null && tempStudent2.getId() > 0) {
+                studentDAO.delete(tempStudent2.getId());
+            }
+        }
+    }
 }

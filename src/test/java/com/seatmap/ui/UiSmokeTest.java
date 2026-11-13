@@ -145,6 +145,8 @@ class UiSmokeTest {
                 assertTrue(initialScene.lookup("#navUserManagementBtn").isVisible());
                 assertTrue(initialScene.lookup("#navAssignmentsBtn").isVisible());
                 assertFalse(initialScene.lookup("#navMyInvigilationsBtn").isVisible());
+                assertNotNull(initialScene.lookup("#departmentPieChart"), "Dashboard must contain Department PieChart");
+                assertNotNull(initialScene.lookup("#roomUtilizationChart"), "Dashboard must contain Room Utilization BarChart");
 
                 // 3. Logout back to login, then sign in as TEACHER
                 SceneManager.setCurrentUser(null);
@@ -192,6 +194,23 @@ class UiSmokeTest {
                 assertTrue(firstCard.getMinHeight() >= 85.0);
                 assertEquals(3, firstCard.getChildren().size(),
                         "Occupied seat card should contain 3 separate Labels (Seat, Roll, Status)");
+
+                // 5. Verify Allocation "Clear All Allocations" button RBAC
+                SceneManager.setCurrentUser(admin);
+                FXMLLoader adminAllocLoader = SceneManager.createLoader("allocation.fxml");
+                Parent adminAllocRoot = adminAllocLoader.load();
+                Button adminClearBtn = (Button) adminAllocRoot.lookup("#clearAllocationsButton");
+                assertNotNull(adminClearBtn);
+                assertTrue(adminClearBtn.isVisible() && adminClearBtn.isManaged(),
+                        "Master Admin must see Clear All Allocations button");
+
+                SceneManager.setCurrentUser(teacher1);
+                FXMLLoader teacherAllocLoader = SceneManager.createLoader("allocation.fxml");
+                Parent teacherAllocRoot = teacherAllocLoader.load();
+                Button teacherClearBtn = (Button) teacherAllocRoot.lookup("#clearAllocationsButton");
+                assertNotNull(teacherClearBtn);
+                assertFalse(teacherClearBtn.isVisible(), "Teacher must not see Clear All Allocations button");
+                assertFalse(teacherClearBtn.isManaged(), "Clear All Allocations button must be unmanaged for Teacher");
             } catch (Throwable t) {
                 failure.set(t);
             } finally {
